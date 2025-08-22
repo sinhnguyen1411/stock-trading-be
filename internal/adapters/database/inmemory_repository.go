@@ -2,6 +2,8 @@ package database
 
 import (
 	"context"
+	"fmt"
+
 	userentity "github.com/sinhnguyen1411/stock-trading-be/internal/entities/user"
 	"github.com/sinhnguyen1411/stock-trading-be/internal/ports"
 )
@@ -13,6 +15,11 @@ var _ ports.UserRepository = InMemoryUserRepository{}
 // CheckUserNameAndEmailIsExist check username and email is existed in system
 func (r InMemoryUserRepository) CheckUserNameAndEmailIsExist(ctx context.Context, userName, email string) error {
 	return nil
+}
+
+// GetLoginInfo returns login information for given username
+func (r InMemoryUserRepository) GetLoginInfo(ctx context.Context, userName string) (userentity.LoginMethodPassword, error) {
+	return userentity.LoginMethodPassword{}, fmt.Errorf("not implemented")
 }
 
 // InsertRegisterInfo insert into repository and then generate userID

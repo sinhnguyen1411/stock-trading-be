@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+
 	"github.com/sinhnguyen1411/stock-trading-be/cmd/server/config"
 	"github.com/sinhnguyen1411/stock-trading-be/internal/adapters/database"
 	use_case "github.com/sinhnguyen1411/stock-trading-be/internal/usecases/user"
@@ -21,10 +22,12 @@ func NewGrpcServices(cfg config.Config, infra *InfrastructureDependencies, adapt
 	}, nil
 }
 
-func NewUserService(_ config.Config, _ *InfrastructureDependencies, adapters *Adapters) (*users.UserService, error) {
-	database.ConnectDB()
-	userUseCase := use_case.NewUserRegisterUseCase(database.NewMysqlUserRepository())
+func NewUserService(cfg config.Config, _ *InfrastructureDependencies, adapters *Adapters) (*users.UserService, error) {
+	database.ConnectDB(cfg.DB)
+	repo := database.NewMysqlUserRepository()
+	userUseCase := use_case.NewUserRegisterUseCase(repo)
+	loginUseCase := use_case.NewUserLoginUseCase(repo)
 
-	userService := users.NewUserService(userUseCase)
+	userService := users.NewUserService(userUseCase, loginUseCase)
 	return userService, nil
 }

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Auth</title>
+</head>
+<body>
+<h1>Login</h1>
+<form id="loginForm">
+    <input type="text" id="loginUsername" placeholder="Username" required>
+    <input type="password" id="loginPassword" placeholder="Password" required>
+    <button type="submit">Login</button>
+</form>
+
+<h1>Register</h1>
+<form id="registerForm">
+    <input type="text" id="registerUsername" placeholder="Username" required>
+    <input type="password" id="registerPassword" placeholder="Password" required>
+    <input type="email" id="registerEmail" placeholder="Email" required>
+    <input type="text" id="registerName" placeholder="Name" required>
+    <button type="submit">Register</button>
+</form>
+
+<pre id="output"></pre>
+
+<script>
+const output = document.getElementById('output');
+
+async function handleResponse(res) {
+    const text = await res.text();
+    output.textContent = text;
+}
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+        username: document.getElementById('loginUsername').value,
+        password: document.getElementById('loginPassword').value
+    };
+    const res = await fetch('/api/v1/user/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    });
+    handleResponse(res);
+});
+
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+        username: document.getElementById('registerUsername').value,
+        password: document.getElementById('registerPassword').value,
+        email: document.getElementById('registerEmail').value,
+        name: document.getElementById('registerName').value,
+        cmnd: '',
+        birthday: 0,
+        gender: false,
+        permanentAddress: '',
+        phoneNumber: ''
+    };
+    const res = await fetch('/api/v1/user/register', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    });
+    handleResponse(res);
+});
+</script>
+</body>
+</html>

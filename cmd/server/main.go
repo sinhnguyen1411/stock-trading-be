@@ -11,6 +11,7 @@ import (
 
 	grpcadapter "github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/grpc_server"
 	"github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/http_gateway"
+	static "github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/http_gateway/static"
 	"github.com/urfave/cli/v2"
 )
 
@@ -91,7 +92,9 @@ func StartHTTPServer(cfg *config.Config) error {
 		return fmt.Errorf("failed to new http gateway services: %w", err)
 	}
 
-	httpServices := make([]http_gateway.HTTPService, 0)
+	httpServices := []http_gateway.HTTPService{
+		static.New("web"),
+	}
 	httpStop, cherr := http_gateway.StartServer(cfg.HTTP, httpgwServices, httpServices)
 	go func() {
 		for herr := range cherr {
