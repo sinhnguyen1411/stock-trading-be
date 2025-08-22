@@ -2,10 +2,11 @@ package user
 
 import (
 	"context"
+	"testing"
+
 	userentity "github.com/sinhnguyen1411/stock-trading-be/internal/entities/user"
 	"github.com/sinhnguyen1411/stock-trading-be/internal/ports"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 type InMemoryUserRepository struct{}
@@ -26,9 +27,9 @@ func TestRegister(t *testing.T) {
 	}
 
 	err := usecase.RegisterAccount(context.Background(), RequestRegister{
-		Username:         "bandan",
+		Username:         "alice123",
 		Password:         "123123123",
-		Email:            "1231231",
+		Email:            "12312312",
 		Name:             "12312313",
 		Cmnd:             "123",
 		Birthday:         0,
