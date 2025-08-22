@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/bqdanh/stock-trading-be/cmd/server"
+	"github.com/sinhnguyen1411/stock-trading-be/cmd/server"
 	"github.com/urfave/cli/v2"
 )
 

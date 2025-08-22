@@ -1,10 +1,11 @@
-﻿package database
+package database
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/bqdanh/stock-trading-be/internal/entities/user"
+	userentity "github.com/sinhnguyen1411/stock-trading-be/internal/entities/user"
+	"github.com/sinhnguyen1411/stock-trading-be/internal/ports"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -27,8 +28,9 @@ func ConnectDB() {
 	fmt.Println("✅ Kết nối thành công MySQL")
 }
 
-type MysqlUserRepository struct {
-}
+type MysqlUserRepository struct{}
+
+var _ ports.UserRepository = MysqlUserRepository{}
 
 func NewMysqlUserRepository() MysqlUserRepository {
 	return MysqlUserRepository{}
@@ -40,7 +42,7 @@ func (r MysqlUserRepository) CheckUserNameAndEmailIsExist(ctx context.Context, u
 }
 
 // InsertRegisterInfo insert into repository and then generate userID
-func (r MysqlUserRepository) InsertRegisterInfo(ctx context.Context, user user.User, loginMethod user.LoginMethodPassword) error {
+func (r MysqlUserRepository) InsertRegisterInfo(ctx context.Context, user userentity.User, loginMethod userentity.LoginMethodPassword) error {
 	//_, err := DB.Exec("INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)", loginMethod.UserName, loginMethod.Password, user.Email)
 	gender := "female"
 	if user.Gender == true {

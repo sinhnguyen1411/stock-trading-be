@@ -1,29 +1,22 @@
-﻿package user
+package user
 
 import (
 	"context"
 	"fmt"
-	"github.com/bqdanh/stock-trading-be/internal/entities/user"
+	userentity "github.com/sinhnguyen1411/stock-trading-be/internal/entities/user"
+	"github.com/sinhnguyen1411/stock-trading-be/internal/ports"
 	"golang.org/x/crypto/bcrypt"
 	"time"
 )
 
 type UserRegisterUseCase struct {
-	repository UserRepository
+	repository ports.UserRepository
 }
 
-func NewUserRegisterUseCase(repo UserRepository) UserRegisterUseCase {
+func NewUserRegisterUseCase(repo ports.UserRepository) UserRegisterUseCase {
 	return UserRegisterUseCase{
 		repository: repo,
 	}
-}
-
-// UserRepository port layer
-type UserRepository interface {
-	//CheckUserNameAndEmailIsExist check username and email is existed in system
-	CheckUserNameAndEmailIsExist(ctx context.Context, userName, email string) error
-	//InsertRegisterInfo insert into repository and then generate userID
-	InsertRegisterInfo(ctx context.Context, user user.User, loginMethod user.LoginMethodPassword) error
 }
 
 type RequestRegister struct {
@@ -59,7 +52,7 @@ func (u UserRegisterUseCase) RegisterAccount(ctx context.Context, req RequestReg
 		return fmt.Errorf("hash password got error: %w", err)
 	}
 
-	usermodel := user.User{
+	usermodel := userentity.User{
 		Id:               0, //insert into database will create userID
 		Name:             req.Name,
 		Email:            req.Email,
@@ -69,7 +62,7 @@ func (u UserRegisterUseCase) RegisterAccount(ctx context.Context, req RequestReg
 		PermanentAddress: req.PermanentAddress,
 		PhoneNumber:      req.PhoneNumber,
 	}
-	loginMethod := user.LoginMethodPassword{
+	loginMethod := userentity.LoginMethodPassword{
 		UserName: req.Username,
 		Password: string(hashedPassword),
 	}

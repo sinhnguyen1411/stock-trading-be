@@ -2,7 +2,7 @@
 
 import (
 	"context"
-	"github.com/bqdanh/stock-trading-be/api/grpc/user"
+	"github.com/sinhnguyen1411/stock-trading-be/api/grpc/user"
 	"google.golang.org/grpc/codes"
 )
 

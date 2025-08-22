@@ -3,14 +3,14 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/bqdanh/stock-trading-be/cmd/server/config"
+	"github.com/sinhnguyen1411/stock-trading-be/cmd/server/config"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
-	grpcadapter "github.com/bqdanh/stock-trading-be/internal/adapters/server/grpc_server"
-	"github.com/bqdanh/stock-trading-be/internal/adapters/server/http_gateway"
+	grpcadapter "github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/grpc_server"
+	"github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/http_gateway"
 	"github.com/urfave/cli/v2"
 )
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/bqdanh/stock-trading-be/api/grpc/user"
+	"github.com/sinhnguyen1411/stock-trading-be/api/grpc/user"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 )
