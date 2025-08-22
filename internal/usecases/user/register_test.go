@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	userentity "github.com/sinhnguyen1411/stock-trading-be/internal/entities/user"
@@ -19,6 +20,10 @@ func (r InMemoryUserRepository) CheckUserNameAndEmailIsExist(ctx context.Context
 
 func (r InMemoryUserRepository) InsertRegisterInfo(ctx context.Context, user userentity.User, loginMethod userentity.LoginMethodPassword) error {
 	return nil
+}
+
+func (r InMemoryUserRepository) GetLoginInfo(ctx context.Context, userName string) (userentity.LoginMethodPassword, error) {
+	return userentity.LoginMethodPassword{}, fmt.Errorf("not implemented")
 }
 
 func TestRegister(t *testing.T) {
