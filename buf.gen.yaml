@@ -2,7 +2,7 @@ version: v1
 managed:
   enabled: true
   go_package_prefix:
-    default: github.com/bqdanh/stock-trading-be/api
+    default: github.com/sinhnguyen1411/stock-trading-be/api
     except:
       - buf.build/grpc-ecosystem/protoc-gen-swagger
       - buf.build/grpc-ecosystem/openapiv2

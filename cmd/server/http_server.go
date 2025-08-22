@@ -2,10 +2,10 @@ package server
 
 import (
 	"fmt"
-	"github.com/bqdanh/stock-trading-be/cmd/server/config"
+	"github.com/sinhnguyen1411/stock-trading-be/cmd/server/config"
 
-	"github.com/bqdanh/stock-trading-be/internal/adapters/server/http_gateway"
-	usersgw "github.com/bqdanh/stock-trading-be/internal/adapters/server/http_gateway/users"
+	"github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/http_gateway"
+	usersgw "github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/http_gateway/users"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

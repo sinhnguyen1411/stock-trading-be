@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/bqdanh/stock-trading-be/internal/adapters/server/grpc_server"
-	"github.com/bqdanh/stock-trading-be/internal/adapters/server/http_gateway"
+	"github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/grpc_server"
+	"github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/http_gateway"
 	"github.com/spf13/viper"
 )
 

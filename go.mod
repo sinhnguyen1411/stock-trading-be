@@ -1,4 +1,4 @@
-module github.com/bqdanh/stock-trading-be
+module github.com/sinhnguyen1411/stock-trading-be
 
 go 1.23.2
 

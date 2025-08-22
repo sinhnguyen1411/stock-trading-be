@@ -1,7 +1,7 @@
 ﻿syntax = "proto3";
 
 package money_transfer.user_service;
-option go_package = "github.com/bqdanh/stock-trading-be";
+option go_package = "github.com/sinhnguyen1411/stock-trading-be";
 
 import "validate/validate.proto";
 import "google/api/annotations.proto";

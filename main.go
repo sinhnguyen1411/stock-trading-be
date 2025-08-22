@@ -1,7 +1,7 @@
 ﻿package main
 
 import (
-	"github.com/bqdanh/stock-trading-be/cmd"
+	"github.com/sinhnguyen1411/stock-trading-be/cmd"
 	"os"
 )
 

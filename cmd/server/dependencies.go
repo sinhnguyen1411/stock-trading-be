@@ -2,7 +2,7 @@ package server
 
 import (
 	"database/sql"
-	"github.com/bqdanh/stock-trading-be/cmd/server/config"
+	"github.com/sinhnguyen1411/stock-trading-be/cmd/server/config"
 )
 
 type InfrastructureDependencies struct {

@@ -2,8 +2,8 @@ package users
 
 import (
 	"context"
-	"github.com/bqdanh/stock-trading-be/api/grpc/user"
-	user2 "github.com/bqdanh/stock-trading-be/internal/usecases/user"
+	"github.com/sinhnguyen1411/stock-trading-be/api/grpc/user"
+	user2 "github.com/sinhnguyen1411/stock-trading-be/internal/usecases/user"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

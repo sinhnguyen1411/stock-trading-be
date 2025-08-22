@@ -2,12 +2,12 @@ package server
 
 import (
 	"fmt"
-	"github.com/bqdanh/stock-trading-be/cmd/server/config"
-	"github.com/bqdanh/stock-trading-be/internal/adapters/database"
-	use_case "github.com/bqdanh/stock-trading-be/internal/usecases/user"
+	"github.com/sinhnguyen1411/stock-trading-be/cmd/server/config"
+	"github.com/sinhnguyen1411/stock-trading-be/internal/adapters/database"
+	use_case "github.com/sinhnguyen1411/stock-trading-be/internal/usecases/user"
 
-	grpcadapter "github.com/bqdanh/stock-trading-be/internal/adapters/server/grpc_server"
-	"github.com/bqdanh/stock-trading-be/internal/adapters/server/grpc_server/users"
+	grpcadapter "github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/grpc_server"
+	"github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/grpc_server/users"
 )
 
 func NewGrpcServices(cfg config.Config, infra *InfrastructureDependencies, adapters *Adapters) ([]grpcadapter.Service, error) {
