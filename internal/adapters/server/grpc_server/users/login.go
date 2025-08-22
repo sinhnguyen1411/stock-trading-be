@@ -16,7 +16,6 @@ func (s *UserService) Login(ctx context.Context, req *user.LoginRequest) (*user.
 	return &user.LoginResponse{
 		Code:    uint32(codes.OK),
 		Message: codes.OK.String(),
-		Data:    &user.LoginResponse_Data{Token: "alice123"},
 
 		Data: &user.LoginResponse_Data{Token: token},
 	}, nil
