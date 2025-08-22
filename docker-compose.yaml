@@ -1,0 +1,25 @@
+﻿version: '3.8'
+
+services:
+  mysql:
+    image: mysql:5.7
+    container_name: mysql_container
+    environment:
+      MYSQL_ROOT_PASSWORD: root  # Set the root password here
+      MYSQL_DATABASE: stock        # Set the default database name here
+      MYSQL_USER: stock_user              # Set a user name for the database
+      MYSQL_PASSWORD: ps123456      # Set the password for the user
+    ports:
+      - "3306:3306"  # Expose MySQL port
+    volumes:
+      - mysql_data:/var/lib/mysql  # Persistent data storage
+    networks:
+      - mysql_network
+
+volumes:
+  mysql_data:  # Persistent volume for MySQL data
+    driver: local
+
+networks:
+  mysql_network:
+    driver: bridge

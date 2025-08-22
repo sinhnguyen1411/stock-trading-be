@@ -1,0 +1,27 @@
+package cmd
+
+import (
+	"github.com/bqdanh/stock-trading-be/cmd/server"
+	"github.com/urfave/cli/v2"
+)
+
+func AppCommandLineInterface() *cli.App {
+	appCli := cli.NewApp()
+	appCli.Action = server.StartServerAction
+	appCli.Flags = []cli.Flag{
+		&cli.StringFlag{
+			Name:        "config",
+			Aliases:     []string{"c"},
+			Usage:       "Load configuration from file path`",
+			DefaultText: "./cmd/server/config/local.yaml",
+			Value:       "./cmd/server/config/local.yaml",
+			Required:    false,
+		},
+	}
+
+	appCli.Commands = []*cli.Command{
+		server.StartServerCmd,
+	}
+
+	return appCli
+}

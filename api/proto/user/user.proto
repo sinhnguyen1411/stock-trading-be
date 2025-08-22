@@ -1,0 +1,61 @@
+﻿syntax = "proto3";
+
+package money_transfer.user_service;
+option go_package = "github.com/bqdanh/stock-trading-be";
+
+import "validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/rpc/error_details.proto";
+
+import "protoc-gen-swagger/options/annotations.proto";
+
+service UserService {
+  rpc Register(RegisterRequest) returns (RegisterResponse) {
+    option (google.api.http) = {
+      put: "/api/v1/user/register",
+      body: "*"
+    };
+  }
+
+  rpc Login(LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/user/login",
+      body: "*"
+    };
+  }
+}
+
+
+message RegisterRequest {
+  string username = 1 [(validate.rules).string = {min_len: 6, max_len: 16}];
+  string password = 2 [(validate.rules).string = {min_len: 6, max_len: 16}];
+  string email = 3 [(validate.rules).string = {min_len: 6, max_len: 16}];
+  string name = 4 [(validate.rules).string = {min_len: 6, max_len: 16}];
+  string cmnd = 5 [(validate.rules).string = {min_len: 6, max_len: 16}];
+  int64 birthday = 6;
+  bool gender = 7;
+  string permanent_address = 8;
+  string phone_number = 9 [(validate.rules).string = {min_len: 9, max_len: 13}];
+}
+
+message RegisterResponse {
+  uint32 code = 1;
+  string message = 2;
+
+}
+
+message LoginRequest{
+  string username = 1 [(validate.rules).string = {min_len: 6, max_len: 16}];
+  string password = 2 [(validate.rules).string = {min_len: 6, max_len: 16}];
+}
+
+message LoginResponse {
+  uint32 code = 1;
+  string message = 2;
+
+  message Data {
+    string token = 1;
+  }
+
+  Data data = 3;
+}
