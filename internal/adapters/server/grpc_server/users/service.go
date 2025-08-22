@@ -2,6 +2,7 @@ package users
 
 import (
 	"context"
+
 	"github.com/sinhnguyen1411/stock-trading-be/api/grpc/user"
 	user2 "github.com/sinhnguyen1411/stock-trading-be/internal/usecases/user"
 	"google.golang.org/grpc"
@@ -11,14 +12,17 @@ import (
 
 type UserService struct {
 	user.UnimplementedUserServiceServer
-	userUseCase user2.UserRegisterUseCase
+	userUseCase  user2.UserRegisterUseCase
+	loginUseCase user2.UserLoginUseCase
 }
 
 func NewUserService(
 	registerUseCase user2.UserRegisterUseCase,
+	loginUseCase user2.UserLoginUseCase,
 ) *UserService {
 	return &UserService{
-		userUseCase: registerUseCase,
+		userUseCase:  registerUseCase,
+		loginUseCase: loginUseCase,
 	}
 }
 
