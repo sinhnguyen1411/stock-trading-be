@@ -79,7 +79,7 @@ func (r MysqlUserRepository) GetLoginInfo(ctx context.Context, userName string) 
 // InsertRegisterInfo insert into repository and then generate userID
 func (r MysqlUserRepository) InsertRegisterInfo(ctx context.Context, user userentity.User, loginMethod userentity.LoginMethodPassword) error {
 	gender := "female"
-	if user.Gender == true {
+	if user.Gender {
 		gender = "male"
 	}
 	_, err := DB.Exec("INSERT INTO stock.users (name, cmnd, birthday, gender, permanent_address, phone_number, username, password_hash, email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
