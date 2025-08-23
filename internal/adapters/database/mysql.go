@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	_ "github.com/go-sql-driver/mysql"
+	mysql "github.com/go-sql-driver/mysql"
 	userentity "github.com/sinhnguyen1411/stock-trading-be/internal/entities/user"
 	"github.com/sinhnguyen1411/stock-trading-be/internal/ports"
 )
@@ -18,12 +18,17 @@ var DB *sql.DB
 // in-memory) instead of relying on a nil DB object.
 func ConnectDB(cfg Config) error {
 	var err error
-	// Enable parseTime so DATE and DATETIME columns are scanned into
-	// time.Time instead of []byte. Without this parameter, scanning a
-	// DATE column (e.g. birthday) into time.Time results in the error:
-	// "unsupported Scan, storing driver.Value type []uint8 into type *time.Time".
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name)
-	DB, err = sql.Open("mysql", dsn)
+	// Build DSN using mysql.Config so credentials are correctly escaped
+	// and parseTime is enabled to scan DATE/DATETIME into time.Time.
+	dsnCfg := mysql.Config{
+		User:      cfg.User,
+		Passwd:    cfg.Password,
+		Net:       "tcp",
+		Addr:      fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		DBName:    cfg.Name,
+		ParseTime: true,
+	}
+	DB, err = sql.Open("mysql", dsnCfg.FormatDSN())
 	if err != nil {
 		fmt.Println("❌ Không thể kết nối MySQL:", err)
 		return err
