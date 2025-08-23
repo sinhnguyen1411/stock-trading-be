@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	userentity "github.com/sinhnguyen1411/stock-trading-be/internal/entities/user"
 	"github.com/sinhnguyen1411/stock-trading-be/internal/ports"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -18,20 +19,20 @@ func NewUserLoginUseCase(repo ports.UserRepository) UserLoginUseCase {
 	return UserLoginUseCase{repository: repo}
 }
 
-// Login validates user credentials and returns a token when successful.
-func (u UserLoginUseCase) Login(ctx context.Context, username, password string) (string, error) {
-	info, err := u.repository.GetLoginInfo(ctx, username)
+// Login validates user credentials and returns a token along with user info when successful.
+func (u UserLoginUseCase) Login(ctx context.Context, username, password string) (string, userentity.User, error) {
+	info, userInfo, err := u.repository.GetLoginInfo(ctx, username)
 	if err != nil {
-		return "", fmt.Errorf("get login info: %w", err)
+		return "", userentity.User{}, fmt.Errorf("get login info: %w", err)
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(info.Password), []byte(password)); err != nil {
-		return "", fmt.Errorf("invalid credentials")
+		return "", userentity.User{}, fmt.Errorf("invalid credentials")
 	}
 	token, err := generateToken()
 	if err != nil {
-		return "", fmt.Errorf("generate token: %w", err)
+		return "", userentity.User{}, fmt.Errorf("generate token: %w", err)
 	}
-	return token, nil
+	return token, userInfo, nil
 }
 
 func generateToken() (string, error) {

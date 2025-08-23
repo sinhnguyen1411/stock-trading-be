@@ -12,6 +12,6 @@ type UserRepository interface {
 	CheckUserNameAndEmailIsExist(ctx context.Context, userName, email string) error
 	// InsertRegisterInfo persists a new user and login method.
 	InsertRegisterInfo(ctx context.Context, user user.User, loginMethod user.LoginMethodPassword) error
-	// GetLoginInfo retrieves login information for a username.
-	GetLoginInfo(ctx context.Context, userName string) (user.LoginMethodPassword, error)
+	// GetLoginInfo retrieves login and user information for a username.
+	GetLoginInfo(ctx context.Context, userName string) (user.LoginMethodPassword, user.User, error)
 }

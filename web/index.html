@@ -74,7 +74,13 @@
             });
             const data = await res.json();
             if (res.ok) {
-                messageDiv.textContent = isLogin ? 'Đăng nhập thành công!' : 'Đăng ký thành công!';
+                if (isLogin) {
+                    let info = {};
+                    try { info = JSON.parse(data.message); } catch (e) {}
+                    messageDiv.textContent = `Đăng nhập thành công! Tên: ${info.name || ''}, Email: ${info.email || ''}`;
+                } else {
+                    messageDiv.textContent = 'Đăng ký thành công!';
+                }
                 messageDiv.className = 'message success';
             } else {
                 messageDiv.textContent = data.message || 'Có lỗi xảy ra!';
