@@ -4,8 +4,6 @@ import (
 	"fmt"
 
 	"github.com/sinhnguyen1411/stock-trading-be/cmd/server/config"
-	"github.com/sinhnguyen1411/stock-trading-be/internal/adapters/database"
-	"github.com/sinhnguyen1411/stock-trading-be/internal/ports"
 	use_case "github.com/sinhnguyen1411/stock-trading-be/internal/usecases/user"
 
 	grpcadapter "github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/grpc_server"
@@ -23,13 +21,8 @@ func NewGrpcServices(cfg config.Config, infra *InfrastructureDependencies, adapt
 	}, nil
 }
 
-func NewUserService(cfg config.Config, _ *InfrastructureDependencies, adapters *Adapters) (*users.UserService, error) {
-	var repo ports.UserRepository
-	if err := database.ConnectDB(cfg.DB); err != nil {
-		repo = database.NewInMemoryUserRepository()
-	} else {
-		repo = database.NewMysqlUserRepository()
-	}
+func NewUserService(_ config.Config, _ *InfrastructureDependencies, adapters *Adapters) (*users.UserService, error) {
+	repo := adapters.UserRepository
 
 	userUseCase := use_case.NewUserRegisterUseCase(repo)
 	loginUseCase := use_case.NewUserLoginUseCase(repo)
