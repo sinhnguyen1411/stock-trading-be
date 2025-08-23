@@ -23,6 +23,12 @@ service UserService {
       body: "*"
     };
   }
+
+  rpc Delete(DeleteRequest) returns (DeleteResponse) {
+    option (google.api.http) = {
+      delete: "/api/v1/user/{username}"
+    };
+  }
 }
 
 
@@ -58,4 +64,13 @@ message LoginResponse {
   }
 
   Data data = 3;
+}
+
+message DeleteRequest {
+  string username = 1 [(validate.rules).string = {min_len: 6, max_len: 16}];
+}
+
+message DeleteResponse {
+  uint32 code = 1;
+  string message = 2;
 }

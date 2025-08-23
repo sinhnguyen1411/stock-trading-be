@@ -12,17 +12,20 @@ import (
 
 type UserService struct {
 	user.UnimplementedUserServiceServer
-	userUseCase  user2.UserRegisterUseCase
-	loginUseCase user2.UserLoginUseCase
+	userUseCase   user2.UserRegisterUseCase
+	loginUseCase  user2.UserLoginUseCase
+	deleteUseCase user2.UserDeleteUseCase
 }
 
 func NewUserService(
 	registerUseCase user2.UserRegisterUseCase,
 	loginUseCase user2.UserLoginUseCase,
+	deleteUseCase user2.UserDeleteUseCase,
 ) *UserService {
 	return &UserService{
-		userUseCase:  registerUseCase,
-		loginUseCase: loginUseCase,
+		userUseCase:   registerUseCase,
+		loginUseCase:  loginUseCase,
+		deleteUseCase: deleteUseCase,
 	}
 }
 

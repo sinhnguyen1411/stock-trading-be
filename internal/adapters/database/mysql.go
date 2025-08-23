@@ -81,3 +81,12 @@ func (r MysqlUserRepository) InsertRegisterInfo(ctx context.Context, user useren
 	}
 	return nil
 }
+
+// DeleteUser removes a user by username from MySQL repository.
+func (r MysqlUserRepository) DeleteUser(ctx context.Context, userName string) error {
+	_, err := DB.ExecContext(ctx, "DELETE FROM stock.users WHERE username = ?", userName)
+	if err != nil {
+		return fmt.Errorf("delete user failed: %w", err)
+	}
+	return nil
+}

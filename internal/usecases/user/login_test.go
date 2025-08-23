@@ -26,6 +26,7 @@ func (r loginRepo) GetLoginInfo(ctx context.Context, userName string) (userentit
 	u := userentity.User{Name: "Alice", Email: "alice@example.com"}
 	return userentity.LoginMethodPassword{UserName: userName, Password: r.hash}, u, nil
 }
+func (r loginRepo) DeleteUser(ctx context.Context, userName string) error { return nil }
 
 func TestLogin(t *testing.T) {
 	pw := "secret"
