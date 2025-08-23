@@ -18,7 +18,11 @@ var DB *sql.DB
 // in-memory) instead of relying on a nil DB object.
 func ConnectDB(cfg Config) error {
 	var err error
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name)
+	// Enable parseTime so DATE and DATETIME columns are scanned into
+	// time.Time instead of []byte. Without this parameter, scanning a
+	// DATE column (e.g. birthday) into time.Time results in the error:
+	// "unsupported Scan, storing driver.Value type []uint8 into type *time.Time".
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name)
 	DB, err = sql.Open("mysql", dsn)
 	if err != nil {
 		fmt.Println("❌ Không thể kết nối MySQL:", err)
