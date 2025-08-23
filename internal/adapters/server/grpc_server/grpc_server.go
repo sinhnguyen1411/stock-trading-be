@@ -1,10 +1,12 @@
 package grpc_server
 
 import (
+	"errors"
 	"fmt"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"log"
 	"net"
+	"syscall"
 
 	_ "github.com/prometheus/client_golang/prometheus"
 	"google.golang.org/grpc"
@@ -42,8 +44,14 @@ func StartServer(grpcCfg Config, services ...Service) (gracefulStop func(), cerr
 
 		grpcListener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", grpcCfg.Host, grpcCfg.Port))
 		if err != nil {
-			cerrChan <- fmt.Errorf("failed to listen: %v", err)
-			return
+			if errors.Is(err, syscall.EADDRINUSE) {
+				log.Printf("port %d in use, binding to an available port", grpcCfg.Port)
+				grpcListener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", grpcCfg.Host, 0))
+			}
+			if err != nil {
+				cerrChan <- fmt.Errorf("failed to listen: %v", err)
+				return
+			}
 		}
 		log.Println("grpc server is running on", grpcListener.Addr().String())
 		defer log.Println("grpc server is stopping")
