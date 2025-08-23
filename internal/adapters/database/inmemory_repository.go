@@ -26,3 +26,8 @@ func (r InMemoryUserRepository) GetLoginInfo(ctx context.Context, userName strin
 func (r InMemoryUserRepository) InsertRegisterInfo(ctx context.Context, user userentity.User, loginMethod userentity.LoginMethodPassword) error {
 	return nil
 }
+
+// DeleteUser removes a user from the in-memory repository.
+func (r InMemoryUserRepository) DeleteUser(ctx context.Context, userName string) error {
+	return nil
+}

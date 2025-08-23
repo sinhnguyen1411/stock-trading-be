@@ -14,4 +14,6 @@ type UserRepository interface {
 	InsertRegisterInfo(ctx context.Context, user user.User, loginMethod user.LoginMethodPassword) error
 	// GetLoginInfo retrieves login information for a username.
 	GetLoginInfo(ctx context.Context, userName string) (user.LoginMethodPassword, error)
+	// DeleteUser removes a user from repository by username.
+	DeleteUser(ctx context.Context, userName string) error
 }

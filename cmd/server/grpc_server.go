@@ -27,7 +27,8 @@ func NewUserService(cfg config.Config, _ *InfrastructureDependencies, adapters *
 	repo := database.NewMysqlUserRepository()
 	userUseCase := use_case.NewUserRegisterUseCase(repo)
 	loginUseCase := use_case.NewUserLoginUseCase(repo)
+	deleteUseCase := use_case.NewUserDeleteUseCase(repo)
 
-	userService := users.NewUserService(userUseCase, loginUseCase)
+	userService := users.NewUserService(userUseCase, loginUseCase, deleteUseCase)
 	return userService, nil
 }
