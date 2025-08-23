@@ -66,7 +66,7 @@ func StartHTTPServer(cfg *config.Config) error {
 		return fmt.Errorf("failed to init infrastructure: %w", err)
 	}
 
-	adapters, err := NewAdapters(cfg, infra)
+	adapters, err := NewAdapters(infra)
 	if err != nil {
 		return fmt.Errorf("failed to new adapters: %w", err)
 	}
