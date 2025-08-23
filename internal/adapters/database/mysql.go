@@ -13,21 +13,25 @@ import (
 var DB *sql.DB
 
 // ConnectDB initialises the global DB connection using provided configuration.
-func ConnectDB(cfg Config) {
+// It returns an error when the connection cannot be established so callers can
+// decide whether to fall back to another repository implementation (e.g.
+// in-memory) instead of relying on a nil DB object.
+func ConnectDB(cfg Config) error {
 	var err error
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name)
 	DB, err = sql.Open("mysql", dsn)
 	if err != nil {
 		fmt.Println("❌ Không thể kết nối MySQL:", err)
-		return
+		return err
 	}
 
 	if err = DB.Ping(); err != nil {
 		fmt.Println("❌ MySQL không phản hồi:", err)
-		return
+		return err
 	}
 
 	fmt.Println("✅ Kết nối thành công MySQL")
+	return nil
 }
 
 type MysqlUserRepository struct{}

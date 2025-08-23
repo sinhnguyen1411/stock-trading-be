@@ -11,7 +11,11 @@ import (
 )
 
 func NewHTTPGatewayServices(cfg config.Config, _ *InfrastructureDependencies) ([]http_gateway.GrpcGatewayServices, error) {
-	grpcServerAddr := fmt.Sprintf("%s:%d", cfg.GRPC.Host, cfg.GRPC.Port)
+	grpcHost := cfg.GRPC.Host
+	if grpcHost == "0.0.0.0" {
+		grpcHost = "127.0.0.1"
+	}
+	grpcServerAddr := fmt.Sprintf("%s:%d", grpcHost, cfg.GRPC.Port)
 	grpcServerConn, err := grpc.NewClient(grpcServerAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(),
