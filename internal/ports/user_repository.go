@@ -16,9 +16,6 @@ type UserRepository interface {
 	// GetLoginInfo retrieves login and user information for a username.
 	GetLoginInfo(ctx context.Context, userName string) (user.LoginMethodPassword, user.User, error)
 
-	// GetLoginInfo retrieves login information for a username.
-	GetLoginInfo(ctx context.Context, userName string) (user.LoginMethodPassword, error)
 	// DeleteUser removes a user from repository by username.
 	DeleteUser(ctx context.Context, userName string) error
-
 }

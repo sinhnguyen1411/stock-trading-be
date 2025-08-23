@@ -25,8 +25,8 @@ func (r *deleteRepo) InsertRegisterInfo(ctx context.Context, user userentity.Use
 	return nil
 }
 
-func (r *deleteRepo) GetLoginInfo(ctx context.Context, userName string) (userentity.LoginMethodPassword, error) {
-	return userentity.LoginMethodPassword{}, fmt.Errorf("not implemented")
+func (r *deleteRepo) GetLoginInfo(ctx context.Context, userName string) (userentity.LoginMethodPassword, userentity.User, error) {
+	return userentity.LoginMethodPassword{}, userentity.User{}, fmt.Errorf("not implemented")
 }
 
 func (r *deleteRepo) DeleteUser(ctx context.Context, userName string) error {
