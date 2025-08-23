@@ -17,9 +17,9 @@ func (r InMemoryUserRepository) CheckUserNameAndEmailIsExist(ctx context.Context
 	return nil
 }
 
-// GetLoginInfo returns login information for given username
-func (r InMemoryUserRepository) GetLoginInfo(ctx context.Context, userName string) (userentity.LoginMethodPassword, error) {
-	return userentity.LoginMethodPassword{}, fmt.Errorf("not implemented")
+// GetLoginInfo returns login and user information for given username
+func (r InMemoryUserRepository) GetLoginInfo(ctx context.Context, userName string) (userentity.LoginMethodPassword, userentity.User, error) {
+	return userentity.LoginMethodPassword{}, userentity.User{}, fmt.Errorf("not implemented")
 }
 
 // InsertRegisterInfo insert into repository and then generate userID

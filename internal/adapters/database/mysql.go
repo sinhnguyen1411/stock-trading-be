@@ -51,17 +51,21 @@ func (r MysqlUserRepository) CheckUserNameAndEmailIsExist(ctx context.Context, u
 	return nil
 }
 
-// GetLoginInfo returns login information for given username
-func (r MysqlUserRepository) GetLoginInfo(ctx context.Context, userName string) (userentity.LoginMethodPassword, error) {
+// GetLoginInfo returns login and user information for given username
+func (r MysqlUserRepository) GetLoginInfo(ctx context.Context, userName string) (userentity.LoginMethodPassword, userentity.User, error) {
 	var login userentity.LoginMethodPassword
-	err := DB.QueryRowContext(ctx, "SELECT username, password_hash FROM stock.users WHERE username = ?", userName).Scan(&login.UserName, &login.Password)
+	var u userentity.User
+	var gender string
+	err := DB.QueryRowContext(ctx, "SELECT username, password_hash, name, cmnd, birthday, gender, permanent_address, phone_number, email FROM stock.users WHERE username = ?", userName).
+		Scan(&login.UserName, &login.Password, &u.Name, &u.DocumentID, &u.Birthday, &gender, &u.PermanentAddress, &u.PhoneNumber, &u.Email)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return login, fmt.Errorf("user not found")
+			return login, u, fmt.Errorf("user not found")
 		}
-		return login, fmt.Errorf("query login info failed: %w", err)
+		return login, u, fmt.Errorf("query login info failed: %w", err)
 	}
-	return login, nil
+	u.Gender = gender == "male"
+	return login, u, nil
 }
 
 // InsertRegisterInfo insert into repository and then generate userID

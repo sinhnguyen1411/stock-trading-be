@@ -22,8 +22,8 @@ func (r InMemoryUserRepository) InsertRegisterInfo(ctx context.Context, user use
 	return nil
 }
 
-func (r InMemoryUserRepository) GetLoginInfo(ctx context.Context, userName string) (userentity.LoginMethodPassword, error) {
-	return userentity.LoginMethodPassword{}, fmt.Errorf("not implemented")
+func (r InMemoryUserRepository) GetLoginInfo(ctx context.Context, userName string) (userentity.LoginMethodPassword, userentity.User, error) {
+	return userentity.LoginMethodPassword{}, userentity.User{}, fmt.Errorf("not implemented")
 }
 func (r InMemoryUserRepository) DeleteUser(ctx context.Context, userName string) error { return nil }
 

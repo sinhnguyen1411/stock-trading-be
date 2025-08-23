@@ -22,8 +22,9 @@ func (r loginRepo) CheckUserNameAndEmailIsExist(ctx context.Context, userName, e
 func (r loginRepo) InsertRegisterInfo(ctx context.Context, user userentity.User, loginMethod userentity.LoginMethodPassword) error {
 	return nil
 }
-func (r loginRepo) GetLoginInfo(ctx context.Context, userName string) (userentity.LoginMethodPassword, error) {
-	return userentity.LoginMethodPassword{UserName: userName, Password: r.hash}, nil
+func (r loginRepo) GetLoginInfo(ctx context.Context, userName string) (userentity.LoginMethodPassword, userentity.User, error) {
+	u := userentity.User{Name: "Alice", Email: "alice@example.com"}
+	return userentity.LoginMethodPassword{UserName: userName, Password: r.hash}, u, nil
 }
 func (r loginRepo) DeleteUser(ctx context.Context, userName string) error { return nil }
 
@@ -33,10 +34,11 @@ func TestLogin(t *testing.T) {
 	repo := loginRepo{hash: string(hashed)}
 	uc := NewUserLoginUseCase(repo)
 
-	token, err := uc.Login(context.Background(), "alice", pw)
+	token, userInfo, err := uc.Login(context.Background(), "alice", pw)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, token)
+	assert.Equal(t, "Alice", userInfo.Name)
 
-	_, err = uc.Login(context.Background(), "alice", "wrong")
+	_, _, err = uc.Login(context.Background(), "alice", "wrong")
 	assert.Error(t, err)
 }
