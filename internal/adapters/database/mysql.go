@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	mysql "github.com/go-sql-driver/mysql"
 	userentity "github.com/sinhnguyen1411/stock-trading-be/internal/entities/user"
@@ -69,13 +70,18 @@ func (r MysqlUserRepository) GetLoginInfo(ctx context.Context, userName string) 
 	var login userentity.LoginMethodPassword
 	var u userentity.User
 	var gender string
+	var birthdayStr string
 	err := DB.QueryRowContext(ctx, "SELECT username, password_hash, name, cmnd, birthday, gender, permanent_address, phone_number, email FROM stock.users WHERE username = ?", userName).
-		Scan(&login.UserName, &login.Password, &u.Name, &u.DocumentID, &u.Birthday, &gender, &u.PermanentAddress, &u.PhoneNumber, &u.Email)
+		Scan(&login.UserName, &login.Password, &u.Name, &u.DocumentID, &birthdayStr, &gender, &u.PermanentAddress, &u.PhoneNumber, &u.Email)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return login, u, fmt.Errorf("user not found")
 		}
 		return login, u, fmt.Errorf("query login info failed: %w", err)
+	}
+	u.Birthday, err = time.Parse("2006-01-02", birthdayStr)
+	if err != nil {
+		return login, u, fmt.Errorf("parse birthday failed: %w", err)
 	}
 	u.Gender = gender == "male"
 	return login, u, nil
