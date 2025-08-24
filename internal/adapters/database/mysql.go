@@ -55,7 +55,12 @@ func NewMysqlUserRepository() MysqlUserRepository {
 // CheckUserNameAndEmailIsExist check username and email is existed in system
 func (r MysqlUserRepository) CheckUserNameAndEmailIsExist(ctx context.Context, userName, email string) error {
 	var count int
-	err := DB.QueryRowContext(ctx, "SELECT COUNT(*) FROM stock.users WHERE username = ? OR email = ?", userName, email).Scan(&count)
+	err := DB.QueryRowContext(
+		ctx,
+		"SELECT COUNT(*) FROM stock.users WHERE username = ? OR email = ?",
+		userName,
+		email,
+	).Scan(&count)
 	if err != nil {
 		return fmt.Errorf("query username/email exists failed: %w", err)
 	}
@@ -71,17 +76,33 @@ func (r MysqlUserRepository) GetLoginInfo(ctx context.Context, userName string) 
 	var u userentity.User
 	var gender string
 	var birthdayStr string
-	err := DB.QueryRowContext(ctx, "SELECT username, password_hash, name, cmnd, birthday, gender, permanent_address, phone_number, email FROM stock.users WHERE username = ?", userName).
-		Scan(&login.UserName, &login.Password, &u.Name, &u.DocumentID, &birthdayStr, &gender, &u.PermanentAddress, &u.PhoneNumber, &u.Email)
+	err := DB.QueryRowContext(
+		ctx,
+		"SELECT username, password_hash, name, cmnd, birthday, gender, permanent_address, phone_number, email FROM stock.users WHERE username = ?",
+		userName,
+	).Scan(
+		&login.UserName,
+		&login.Password,
+		&u.Name,
+		&u.DocumentID,
+		&birthdayStr,
+		&gender,
+		&u.PermanentAddress,
+		&u.PhoneNumber,
+		&u.Email,
+	)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return login, u, fmt.Errorf("user not found")
 		}
 		return login, u, fmt.Errorf("query login info failed: %w", err)
 	}
-	u.Birthday, err = time.Parse("2006-01-02", birthdayStr)
+	u.Birthday, err = time.Parse(time.RFC3339, birthdayStr)
 	if err != nil {
-		return login, u, fmt.Errorf("parse birthday failed: %w", err)
+		u.Birthday, err = time.Parse("2006-01-02", birthdayStr)
+		if err != nil {
+			return login, u, fmt.Errorf("parse birthday failed: %w", err)
+		}
 	}
 	u.Gender = gender == "male"
 	return login, u, nil
