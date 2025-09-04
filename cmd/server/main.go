@@ -1,13 +1,13 @@
 package server
 
 import (
-	"encoding/json"
-	"fmt"
-	"github.com/sinhnguyen1411/stock-trading-be/cmd/server/config"
-	"log/slog"
-	"os"
-	"os/signal"
-	"syscall"
+    "encoding/json"
+    "fmt"
+    "github.com/sinhnguyen1411/stock-trading-be/cmd/server/config"
+    "log/slog"
+    "os"
+    "os/signal"
+    "syscall"
 
 	grpcadapter "github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/grpc_server"
 	"github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/http_gateway"
@@ -46,8 +46,8 @@ func StartHTTPServer(cfg *config.Config) error {
 		if err != nil {
 			return fmt.Errorf("failed to marshal config: %w", err)
 		}
-		fmt.Println("Start server with config:", string(bs))
-	}
+        slog.Info("Start server with config", "config", string(bs))
+    }
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)

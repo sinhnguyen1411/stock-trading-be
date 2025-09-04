@@ -37,11 +37,11 @@ type Adapters struct {
 // implementation is used to keep the application functional in a degraded
 // mode.
 func NewAdapters(infra *InfrastructureDependencies) (*Adapters, error) {
-	var repo ports.UserRepository
-	if infra.DB != nil {
-		repo = database.NewMysqlUserRepository()
-	} else {
-		repo = database.NewInMemoryUserRepository()
-	}
-	return &Adapters{UserRepository: repo}, nil
+    var repo ports.UserRepository
+    if infra.DB != nil {
+        repo = database.NewMysqlUserRepository(infra.DB)
+    } else {
+        repo = database.NewInMemoryUserRepository()
+    }
+    return &Adapters{UserRepository: repo}, nil
 }

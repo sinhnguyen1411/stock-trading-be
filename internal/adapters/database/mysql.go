@@ -3,8 +3,11 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
+
+	"log/slog"
 
 	mysql "github.com/go-sql-driver/mysql"
 	userentity "github.com/sinhnguyen1411/stock-trading-be/internal/entities/user"
@@ -22,52 +25,63 @@ func ConnectDB(cfg Config) error {
 	// Build DSN using mysql.Config so credentials are correctly escaped
 	// and parseTime is enabled to scan DATE/DATETIME into time.Time.
 	dsnCfg := mysql.Config{
-		User:      cfg.User,
-		Passwd:    cfg.Password,
-		Net:       "tcp",
-		Addr:      fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-		DBName:    cfg.Name,
-		ParseTime: true,
+		User:         cfg.User,
+		Passwd:       cfg.Password,
+		Net:          "tcp",
+		Addr:         fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
+		DBName:       cfg.Name,
+		ParseTime:    true,
+		Timeout:      3 * time.Second,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+		Loc:          time.UTC,
 	}
 	DB, err = sql.Open("mysql", dsnCfg.FormatDSN())
 	if err != nil {
-		fmt.Println("❌ Không thể kết nối MySQL:", err)
+		slog.Error("Failed to connect to MySQL", "error", err)
 		return err
 	}
 
-	if err = DB.Ping(); err != nil {
-		fmt.Println("❌ MySQL không phản hồi:", err)
+	// Reasonable pool settings; adjust per workload
+	DB.SetMaxOpenConns(25)
+	DB.SetMaxIdleConns(25)
+	DB.SetConnMaxLifetime(5 * time.Minute)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err = DB.PingContext(ctx); err != nil {
+		slog.Error("MySQL is not responding", "error", err)
 		return err
 	}
 
-	fmt.Println("✅ Kết nối thành công MySQL")
+	slog.Info("Connected to MySQL successfully")
 	return nil
 }
 
-type MysqlUserRepository struct{}
+type MysqlUserRepository struct{ db *sql.DB }
 
 var _ ports.UserRepository = MysqlUserRepository{}
 
-func NewMysqlUserRepository() MysqlUserRepository {
-	return MysqlUserRepository{}
+func NewMysqlUserRepository(db *sql.DB) MysqlUserRepository {
+	return MysqlUserRepository{db: db}
 }
 
 // CheckUserNameAndEmailIsExist check username and email is existed in system
 func (r MysqlUserRepository) CheckUserNameAndEmailIsExist(ctx context.Context, userName, email string) error {
-	var count int
-	err := DB.QueryRowContext(
+	var one int
+	err := r.db.QueryRowContext(
 		ctx,
-		"SELECT COUNT(*) FROM stock.users WHERE username = ? OR email = ?",
+		"SELECT 1 FROM users WHERE username = ? OR email = ? LIMIT 1",
 		userName,
 		email,
-	).Scan(&count)
+	).Scan(&one)
 	if err != nil {
-		return fmt.Errorf("query username/email exists failed: %w", err)
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		return fmt.Errorf("check username/email exists failed: %w", err)
 	}
-	if count > 0 {
-		return fmt.Errorf("username or email already exists")
-	}
-	return nil
+	return fmt.Errorf("username or email already exists")
 }
 
 // GetLoginInfo returns login and user information for given username
@@ -75,17 +89,17 @@ func (r MysqlUserRepository) GetLoginInfo(ctx context.Context, userName string) 
 	var login userentity.LoginMethodPassword
 	var u userentity.User
 	var gender string
-	var birthdayStr string
-	err := DB.QueryRowContext(
+	var birthday sql.NullTime
+	err := r.db.QueryRowContext(
 		ctx,
-		"SELECT username, password_hash, name, cmnd, birthday, gender, permanent_address, phone_number, email FROM stock.users WHERE username = ?",
+		"SELECT username, password_hash, name, cmnd, birthday, gender, permanent_address, phone_number, email FROM users WHERE username = ?",
 		userName,
 	).Scan(
 		&login.UserName,
 		&login.Password,
 		&u.Name,
 		&u.DocumentID,
-		&birthdayStr,
+		&birthday,
 		&gender,
 		&u.PermanentAddress,
 		&u.PhoneNumber,
@@ -97,12 +111,8 @@ func (r MysqlUserRepository) GetLoginInfo(ctx context.Context, userName string) 
 		}
 		return login, u, fmt.Errorf("query login info failed: %w", err)
 	}
-	u.Birthday, err = time.Parse(time.RFC3339, birthdayStr)
-	if err != nil {
-		u.Birthday, err = time.Parse("2006-01-02", birthdayStr)
-		if err != nil {
-			return login, u, fmt.Errorf("parse birthday failed: %w", err)
-		}
+	if birthday.Valid {
+		u.Birthday = birthday.Time
 	}
 	u.Gender = gender == "male"
 	return login, u, nil
@@ -114,9 +124,13 @@ func (r MysqlUserRepository) InsertRegisterInfo(ctx context.Context, user useren
 	if user.Gender {
 		gender = "male"
 	}
-	_, err := DB.Exec("INSERT INTO stock.users (name, cmnd, birthday, gender, permanent_address, phone_number, username, password_hash, email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+	_, err := r.db.ExecContext(ctx, "INSERT INTO users (name, cmnd, birthday, gender, permanent_address, phone_number, username, password_hash, email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		user.Name, user.DocumentID, user.Birthday, gender, user.PermanentAddress, user.PhoneNumber, loginMethod.UserName, loginMethod.Password, user.Email)
 	if err != nil {
+		var me *mysql.MySQLError
+		if errors.As(err, &me) && me.Number == 1062 {
+			return fmt.Errorf("username or email already exists")
+		}
 		return fmt.Errorf("insert data got error: %w", err)
 	}
 	return nil
@@ -124,7 +138,7 @@ func (r MysqlUserRepository) InsertRegisterInfo(ctx context.Context, user useren
 
 // DeleteUser removes a user by username from MySQL repository.
 func (r MysqlUserRepository) DeleteUser(ctx context.Context, userName string) error {
-	_, err := DB.ExecContext(ctx, "DELETE FROM stock.users WHERE username = ?", userName)
+	_, err := r.db.ExecContext(ctx, "DELETE FROM users WHERE username = ?", userName)
 	if err != nil {
 		return fmt.Errorf("delete user failed: %w", err)
 	}
