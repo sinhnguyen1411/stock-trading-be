@@ -23,7 +23,7 @@ func (r loginRepo) InsertRegisterInfo(ctx context.Context, user userentity.User,
 	return nil
 }
 func (r loginRepo) GetLoginInfo(ctx context.Context, userName string) (userentity.LoginMethodPassword, userentity.User, error) {
-	u := userentity.User{Name: "Alice", Email: "alice@example.com"}
+	u := userentity.User{Id: 1, Name: "Alice", Email: "alice@example.com"}
 	return userentity.LoginMethodPassword{UserName: userName, Password: r.hash}, u, nil
 }
 func (r loginRepo) DeleteUser(ctx context.Context, userName string) error { return nil }
@@ -38,6 +38,10 @@ func TestLogin(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, token)
 	assert.Equal(t, "Alice", userInfo.Name)
+
+	id, err := parseToken(token)
+	assert.NoError(t, err)
+	assert.Equal(t, userInfo.Id, id)
 
 	_, _, err = uc.Login(context.Background(), "alice", "wrong")
 	assert.Error(t, err)
