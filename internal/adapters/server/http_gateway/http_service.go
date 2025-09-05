@@ -88,7 +88,10 @@ func StartServer(cfg Config, grpcGwServices []GrpcGatewayServices, httpServices 
 	return graceShutdown, chanErr
 }
 
-var _Headers = map[string]struct{}{}
+var _Headers = map[string]struct{}{
+    // Forward Authorization header to gRPC metadata for auth checks
+    "authorization": {},
+}
 
 func HeaderMatcher(key string) (string, bool) {
 	lowKey := strings.ToLower(key)
