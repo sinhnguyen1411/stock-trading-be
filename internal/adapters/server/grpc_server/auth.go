@@ -4,6 +4,7 @@ import (
     "context"
     "encoding/base64"
     "fmt"
+    "log/slog"
     "strconv"
     "strings"
 
@@ -52,12 +53,14 @@ func AuthUnaryServerInterceptor() grpc.UnaryServerInterceptor {
         }
 
         // Basic validation: token must be base64 and contain userID:random
-        if _, err := parseUserIDFromToken(token); err != nil {
+        uid, err := parseUserIDFromToken(token)
+        if err != nil {
             return nil, status.Error(codes.Unauthenticated, fmt.Sprintf("invalid token: %v", err))
         }
 
-        // Optionally attach user id to context for handlers (not used currently)
-        // ctx = context.WithValue(ctx, ctxKeyUserID{}, uid)
+        // Attach user id to context for handlers
+        ctx = context.WithValue(ctx, ctxKeyUserID{}, uid)
+        slog.Info("AUTH OK", "method", info.FullMethod, "uid", uid)
 
         return handler(ctx, req)
     }
@@ -80,4 +83,18 @@ func parseUserIDFromToken(token string) (int64, error) {
         return 0, fmt.Errorf("invalid user id")
     }
     return uid, nil
+}
+
+// ctxKeyUserID is an unexported context key type to avoid collisions.
+type ctxKeyUserID struct{}
+
+// UserIDFromContext returns the user ID parsed from Authorization token by the
+// AuthUnaryServerInterceptor. The second return value indicates whether an ID was present.
+func UserIDFromContext(ctx context.Context) (int64, bool) {
+    v := ctx.Value(ctxKeyUserID{})
+    if v == nil {
+        return 0, false
+    }
+    id, ok := v.(int64)
+    return id, ok
 }

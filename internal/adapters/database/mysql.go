@@ -37,10 +37,10 @@ func ConnectDB(cfg Config) error {
 		Loc:          time.UTC,
 	}
 	DB, err = sql.Open("mysql", dsnCfg.FormatDSN())
-	if err != nil {
-		slog.Error("Failed to connect to MySQL", "error", err)
-		return err
-	}
+    if err != nil {
+        slog.Error("MYSQL CONNECT FAILED", "error", err)
+        return err
+    }
 
 	// Reasonable pool settings; adjust per workload
 	DB.SetMaxOpenConns(25)
@@ -49,13 +49,13 @@ func ConnectDB(cfg Config) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	if err = DB.PingContext(ctx); err != nil {
-		slog.Error("MySQL is not responding", "error", err)
-		return err
-	}
+    if err = DB.PingContext(ctx); err != nil {
+        slog.Error("MYSQL UNRESPONSIVE", "error", err)
+        return err
+    }
 
-	slog.Info("Connected to MySQL successfully")
-	return nil
+    slog.Info("MYSQL CONNECTED")
+    return nil
 }
 
 type MysqlUserRepository struct{ db *sql.DB }
@@ -90,16 +90,17 @@ func (r MysqlUserRepository) GetLoginInfo(ctx context.Context, userName string) 
 	var u userentity.User
 	var gender string
 	var birthday sql.NullTime
-	err := r.db.QueryRowContext(
-		ctx,
-		"SELECT username, password_hash, name, cmnd, birthday, gender, permanent_address, phone_number, email FROM users WHERE username = ?",
-		userName,
-	).Scan(
-		&login.UserName,
-		&login.Password,
-		&u.Name,
-		&u.DocumentID,
-		&birthday,
+    err := r.db.QueryRowContext(
+        ctx,
+        "SELECT id, username, password_hash, name, cmnd, birthday, gender, permanent_address, phone_number, email FROM users WHERE username = ?",
+        userName,
+    ).Scan(
+        &u.Id,
+        &login.UserName,
+        &login.Password,
+        &u.Name,
+        &u.DocumentID,
+        &birthday,
 		&gender,
 		&u.PermanentAddress,
 		&u.PhoneNumber,

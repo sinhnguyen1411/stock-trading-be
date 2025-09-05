@@ -1,6 +1,6 @@
 ﻿syntax = "proto3";
 
-package money_transfer.user_service;
+package stock_trading.user_service;
 option go_package = "github.com/sinhnguyen1411/stock-trading-be";
 
 import "validate/validate.proto";

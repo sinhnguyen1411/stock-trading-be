@@ -49,6 +49,25 @@ paths:
             $ref: '#/definitions/user_serviceRegisterRequest'
       tags:
         - UserService
+  /api/v1/user/{username}:
+    delete:
+      operationId: UserService_Delete
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/user_serviceDeleteResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: username
+          in: path
+          required: true
+          type: string
+      tags:
+        - UserService
 definitions:
   LoginResponseData:
     type: object
@@ -189,6 +208,14 @@ definitions:
         items:
           type: object
           $ref: '#/definitions/protobufAny'
+  user_serviceDeleteResponse:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int64
+      message:
+        type: string
   user_serviceLoginRequest:
     type: object
     properties:

@@ -46,7 +46,7 @@ func StartHTTPServer(cfg *config.Config) error {
 		if err != nil {
 			return fmt.Errorf("failed to marshal config: %w", err)
 		}
-        slog.Info("Start server with config", "config", string(bs))
+        slog.Info("SERVER START CONFIG", "config", string(bs))
     }
 
 	stop := make(chan os.Signal, 1)
@@ -54,11 +54,11 @@ func StartHTTPServer(cfg *config.Config) error {
 
 	cerr := make(chan error)
 	go func() {
-		for _err := range cerr {
-			slog.Error("got error", "error", _err)
-			stop <- syscall.SIGTERM
-		}
-	}()
+        for _err := range cerr {
+            slog.Error("SERVER ERROR", "error", _err)
+            stop <- syscall.SIGTERM
+        }
+    }()
 
 	//init infrastructure
 	infra, err := InitInfrastructure(cfg)
@@ -103,8 +103,8 @@ func StartHTTPServer(cfg *config.Config) error {
 	}()
 	defer httpStop()
 
-	slog.Info("server started")
-	<-stop
-	slog.Info("server stopping")
-	return nil
+    slog.Info("SERVER STARTED")
+    <-stop
+    slog.Info("SERVER STOPPING")
+    return nil
 }

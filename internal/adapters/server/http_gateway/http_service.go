@@ -1,16 +1,16 @@
 package http_gateway
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"log"
-	"net/http"
-	"strings"
+    "context"
+    "errors"
+    "fmt"
+    "log/slog"
+    "net/http"
+    "strings"
 
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/protobuf/encoding/protojson"
+    "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+    "google.golang.org/grpc/metadata"
+    "google.golang.org/protobuf/encoding/protojson"
 )
 
 type Config struct {
@@ -64,17 +64,17 @@ func StartServer(cfg Config, grpcGwServices []GrpcGatewayServices, httpServices 
 		Handler: httpMux,
 	}
 
-	graceShutdown = func() {
-		log.Println("http_gateway server is shutting down")
-		if err := httpServer.Shutdown(context.Background()); err != nil {
-			chanErr <- fmt.Errorf("failed to shutdown http_gateway: %v", err)
-		}
-	}
+    graceShutdown = func() {
+        slog.Info("HTTP GATEWAY SHUTDOWN START")
+        if err := httpServer.Shutdown(context.Background()); err != nil {
+            chanErr <- fmt.Errorf("failed to shutdown http_gateway: %v", err)
+        }
+    }
 
 	go func() {
 		defer close(chanErr)
-		log.Println("http_gateway server is running on", httpServer.Addr)
-		defer log.Println("http_gateway server is stopping")
+        slog.Info("HTTP GATEWAY RUNNING", "addr", httpServer.Addr)
+        defer slog.Info("HTTP GATEWAY STOPPING")
 		if err := httpServer.ListenAndServe(); err != nil {
 			if errors.Is(err, http.ErrServerClosed) {
 				return
@@ -101,13 +101,19 @@ func HeaderMatcher(key string) (string, bool) {
 	return "", false
 }
 
-func ExtractInfoAnnotator(ctx context.Context, _ *http.Request) metadata.MD {
-	md := make(map[string]string)
-	if method, ok := runtime.RPCMethod(ctx); ok {
-		md["method"] = method // /grpc.gateway.examples.internal.proto.examplepb.LoginService/Login
-	}
-	if pattern, ok := runtime.HTTPPathPattern(ctx); ok {
-		md["pattern"] = pattern // /v1/example/login
-	}
-	return metadata.New(md)
+func ExtractInfoAnnotator(ctx context.Context, r *http.Request) metadata.MD {
+    md := make(map[string]string)
+    if method, ok := runtime.RPCMethod(ctx); ok {
+        md["method"] = method // /grpc.gateway.examples.internal.proto.examplepb.LoginService/Login
+    }
+    if pattern, ok := runtime.HTTPPathPattern(ctx); ok {
+        md["pattern"] = pattern // /v1/example/login
+    }
+    // Attach the raw request path to metadata to help downstream handlers
+    // recover path parameters in edge cases where the generated gateway
+    // does not populate them as expected.
+    if r != nil {
+        md["path"] = r.URL.Path
+    }
+    return metadata.New(md)
 }

@@ -2,8 +2,8 @@
 
 ## Project Structure (Detailed)
 
+# net/http & clean/hexagonalArcht
 ```
-.
 ├── api
 │   ├── docs
 │   │   └── user
@@ -82,20 +82,6 @@
 └── README.md
 ```
 
-# net/http & clean/hexagonalArcht
-
-## tree
-```
-.
-├─ api/           
-├─ cmd/            
-├─ internal/
-│  ├─ adapters/   
-│  ├─ entities/    
-│  ├─ ports/       
-│  └─ usecases/    
-├─ web/          
-└─ main.go
 ```
 HTTP Gateway dùng `net/http` để chuyển tiếp request REST tới các dịch vụ gRPC nội bộ.
 

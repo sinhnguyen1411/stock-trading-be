@@ -1,16 +1,16 @@
 package grpc_server
 
 import (
-	"errors"
-	"fmt"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"log"
-	"net"
-	"syscall"
+    "errors"
+    "fmt"
+    grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+    "log/slog"
+    "net"
+    "syscall"
 
-	_ "github.com/prometheus/client_golang/prometheus"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
+    _ "github.com/prometheus/client_golang/prometheus"
+    "google.golang.org/grpc"
+    "google.golang.org/grpc/reflection"
 )
 
 type Config struct {
@@ -44,18 +44,18 @@ func StartServer(grpcCfg Config, services ...Service) (gracefulStop func(), cerr
 		defer close(cerrChan)
 
 		grpcListener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", grpcCfg.Host, grpcCfg.Port))
-		if err != nil {
-			if errors.Is(err, syscall.EADDRINUSE) {
-				log.Printf("port %d in use, binding to an available port", grpcCfg.Port)
-				grpcListener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", grpcCfg.Host, 0))
-			}
-			if err != nil {
-				cerrChan <- fmt.Errorf("failed to listen: %v", err)
-				return
-			}
-		}
-		log.Println("grpc server is running on", grpcListener.Addr().String())
-		defer log.Println("grpc server is stopping")
+        if err != nil {
+            if errors.Is(err, syscall.EADDRINUSE) {
+                slog.Warn("GRPC PORT IN USE REBINDING", "port", grpcCfg.Port)
+                grpcListener, err = net.Listen("tcp", fmt.Sprintf("%s:%d", grpcCfg.Host, 0))
+            }
+            if err != nil {
+                cerrChan <- fmt.Errorf("failed to listen: %v", err)
+                return
+            }
+        }
+        slog.Info("GRPC SERVER RUNNING", "addr", grpcListener.Addr().String())
+        defer slog.Info("GRPC SERVER STOPPING")
 
 		if err := grpcService.Serve(grpcListener); err != nil {
 			cerrChan <- fmt.Errorf("failed to serve: %v", err)
