@@ -1,5 +1,87 @@
 # Stock Trading Backend
 
+## Project Structure (Detailed)
+
+```
+.
+├── api
+│   ├── docs
+│   │   └── user
+│   │       └── user.swagger.yaml
+│   ├── grpc
+│   │   └── user
+│   │       ├── delete.pb.go
+│   │       ├── user.pb.go
+│   │       ├── user.pb.gw.go
+│   │       ├── user.pb.validate.go
+│   │       └── user_grpc.pb.go
+│   └── proto
+│       ├── buf.lock
+│       ├── buf.yaml
+│       └── user
+│           └── user.proto
+├── cmd
+│   ├── cmd.go
+│   └── server
+│       ├── config
+│       │   ├── config.go
+│       │   ├── docker_compose.yaml
+│       │   └── local.yaml
+│       ├── dependencies.go
+│       ├── grpc_server.go
+│       ├── http_server.go
+│       └── main.go
+├── internal
+│   ├── adapters
+│   │   ├── database
+│   │   │   ├── config.go
+│   │   │   ├── init_database.sql
+│   │   │   ├── inmemory_repository.go
+│   │   │   ├── logininfo_test.go
+│   │   │   └── mysql.go
+│   │   └── server
+│   │       ├── grpc_server
+│   │       │   ├── auth.go
+│   │       │   ├── grpc_server.go
+│   │       │   ├── validate.go
+│   │       │   └── users
+│   │       │       ├── delete.go
+│   │       │       ├── login.go
+│   │       │       └── service.go
+│   │       └── http_gateway
+│   │           ├── http_service.go
+│   │           ├── static
+│   │           │   └── service.go
+│   │           └── users
+│   │               └── service.go
+│   ├── entities
+│   │   └── user
+│   │       └── user.go
+│   ├── ports
+│   │   └── user_repository.go
+│   └── usecases
+│       └── user
+│           ├── delete.go
+│           ├── delete_test.go
+│           ├── login.go
+│           ├── login_test.go
+│           ├── register.go
+│           └── register_test.go
+├── web
+│   └── index.html
+├── .vscode
+│   └── launch.json
+├── .gitattributes
+├── .gitignore
+├── buf.gen.yaml
+├── buf.work.yaml
+├── docker-compose.yaml
+├── go.mod
+├── go.sum
+├── main.go
+└── README.md
+```
+
 # net/http & clean/hexagonalArcht
 
 ## tree
