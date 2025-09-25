@@ -4,10 +4,9 @@ import (
 	"fmt"
 
 	"github.com/sinhnguyen1411/stock-trading-be/cmd/server/config"
-	use_case "github.com/sinhnguyen1411/stock-trading-be/internal/usecases/user"
-
 	grpcadapter "github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/grpc_server"
 	"github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/grpc_server/users"
+	use_case "github.com/sinhnguyen1411/stock-trading-be/internal/usecases/user"
 )
 
 func NewGrpcServices(cfg config.Config, infra *InfrastructureDependencies, adapters *Adapters) ([]grpcadapter.Service, error) {
@@ -27,7 +26,8 @@ func NewUserService(_ config.Config, _ *InfrastructureDependencies, adapters *Ad
 	userUseCase := use_case.NewUserRegisterUseCase(repo)
 	loginUseCase := use_case.NewUserLoginUseCase(repo)
 	deleteUseCase := use_case.NewUserDeleteUseCase(repo)
+	getUseCase := use_case.NewUserGetUseCase(repo)
 
-	userService := users.NewUserService(userUseCase, loginUseCase, deleteUseCase)
+	userService := users.NewUserService(userUseCase, loginUseCase, deleteUseCase, getUseCase)
 	return userService, nil
 }

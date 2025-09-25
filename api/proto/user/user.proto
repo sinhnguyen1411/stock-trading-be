@@ -12,14 +12,14 @@ import "protoc-gen-swagger/options/annotations.proto";
 service UserService {
   rpc Register(RegisterRequest) returns (RegisterResponse) {
     option (google.api.http) = {
-      put: "/api/v1/user/register",
+      put: "/api/v1/user/register"
       body: "*"
     };
   }
 
   rpc Login(LoginRequest) returns (LoginResponse) {
     option (google.api.http) = {
-      post: "/api/v1/user/login",
+      post: "/api/v1/user/login"
       body: "*"
     };
   }
@@ -29,8 +29,13 @@ service UserService {
       delete: "/api/v1/user/{username}"
     };
   }
-}
 
+  rpc Get(GetUserRequest) returns (GetUserResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/user/{username}"
+    };
+  }
+}
 
 message RegisterRequest {
   string username = 1 [(validate.rules).string = {min_len: 6, max_len: 16}];
@@ -47,10 +52,9 @@ message RegisterRequest {
 message RegisterResponse {
   uint32 code = 1;
   string message = 2;
-
 }
 
-message LoginRequest{
+message LoginRequest {
   string username = 1 [(validate.rules).string = {min_len: 6, max_len: 16}];
   string password = 2 [(validate.rules).string = {min_len: 6, max_len: 16}];
 }
@@ -73,4 +77,28 @@ message DeleteRequest {
 message DeleteResponse {
   uint32 code = 1;
   string message = 2;
+}
+
+message GetUserRequest {
+  string username = 1 [(validate.rules).string = {min_len: 6, max_len: 16}];
+}
+
+message GetUserResponse {
+  uint32 code = 1;
+  string message = 2;
+  UserProfile data = 3;
+}
+
+message UserProfile {
+  int64 id = 1;
+  string username = 2;
+  string name = 3;
+  string email = 4;
+  string cmnd = 5;
+  int64 birthday = 6;
+  bool gender = 7;
+  string permanent_address = 8;
+  string phone_number = 9;
+  int64 created_at = 10;
+  int64 updated_at = 11;
 }

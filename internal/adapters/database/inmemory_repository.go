@@ -84,3 +84,15 @@ func (r *InMemoryUserRepository) DeleteUser(ctx context.Context, userName string
 	delete(r.emailIndex, user.Email)
 	return nil
 }
+
+// GetUser retrieves a user profile from the in-memory repository.
+func (r *InMemoryUserRepository) GetUser(ctx context.Context, userName string) (userentity.User, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	user, ok := r.users[userName]
+	if !ok {
+		return userentity.User{}, fmt.Errorf("user not found")
+	}
+	return user, nil
+}

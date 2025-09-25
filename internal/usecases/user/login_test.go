@@ -19,14 +19,21 @@ var _ ports.UserRepository = loginRepo{}
 func (r loginRepo) CheckUserNameAndEmailIsExist(ctx context.Context, userName, email string) error {
 	return nil
 }
+
 func (r loginRepo) InsertRegisterInfo(ctx context.Context, user userentity.User, loginMethod userentity.LoginMethodPassword) error {
 	return nil
 }
+
 func (r loginRepo) GetLoginInfo(ctx context.Context, userName string) (userentity.LoginMethodPassword, userentity.User, error) {
 	u := userentity.User{Id: 1, Name: "Alice", Email: "alice@example.com"}
 	return userentity.LoginMethodPassword{UserName: userName, Password: r.hash}, u, nil
 }
+
 func (r loginRepo) DeleteUser(ctx context.Context, userName string) error { return nil }
+
+func (r loginRepo) GetUser(ctx context.Context, userName string) (userentity.User, error) {
+	return userentity.User{Id: 1, Name: "Alice", Email: "alice@example.com"}, nil
+}
 
 func TestLogin(t *testing.T) {
 	pw := "secret"

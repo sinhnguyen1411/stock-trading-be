@@ -1,17 +1,16 @@
 package server
 
 import (
-    "encoding/json"
-    "fmt"
-    "github.com/sinhnguyen1411/stock-trading-be/cmd/server/config"
-    "log/slog"
-    "os"
-    "os/signal"
-    "syscall"
+	"encoding/json"
+	"fmt"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
 
+	"github.com/sinhnguyen1411/stock-trading-be/cmd/server/config"
 	grpcadapter "github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/grpc_server"
 	"github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/http_gateway"
-	static "github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/http_gateway/static"
 	"github.com/urfave/cli/v2"
 )
 
@@ -46,19 +45,19 @@ func StartHTTPServer(cfg *config.Config) error {
 		if err != nil {
 			return fmt.Errorf("failed to marshal config: %w", err)
 		}
-        slog.Info("SERVER START CONFIG", "config", string(bs))
-    }
+		slog.Info("SERVER START CONFIG", "config", string(bs))
+	}
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	cerr := make(chan error)
 	go func() {
-        for _err := range cerr {
-            slog.Error("SERVER ERROR", "error", _err)
-            stop <- syscall.SIGTERM
-        }
-    }()
+		for _err := range cerr {
+			slog.Error("SERVER ERROR", "error", _err)
+			stop <- syscall.SIGTERM
+		}
+	}()
 
 	//init infrastructure
 	infra, err := InitInfrastructure(cfg)
@@ -92,10 +91,7 @@ func StartHTTPServer(cfg *config.Config) error {
 		return fmt.Errorf("failed to new http gateway services: %w", err)
 	}
 
-	httpServices := []http_gateway.HTTPService{
-		static.New("web"),
-	}
-	httpStop, cherr := http_gateway.StartServer(cfg.HTTP, httpgwServices, httpServices)
+	httpStop, cherr := http_gateway.StartServer(cfg.HTTP, httpgwServices, nil)
 	go func() {
 		for herr := range cherr {
 			cerr <- fmt.Errorf("http server error: %w", herr)
@@ -103,8 +99,8 @@ func StartHTTPServer(cfg *config.Config) error {
 	}()
 	defer httpStop()
 
-    slog.Info("SERVER STARTED")
-    <-stop
-    slog.Info("SERVER STOPPING")
-    return nil
+	slog.Info("SERVER STARTED")
+	<-stop
+	slog.Info("SERVER STOPPING")
+	return nil
 }

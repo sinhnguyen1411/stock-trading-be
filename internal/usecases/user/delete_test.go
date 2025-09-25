@@ -34,6 +34,10 @@ func (r *deleteRepo) DeleteUser(ctx context.Context, userName string) error {
 	return r.err
 }
 
+func (r *deleteRepo) GetUser(ctx context.Context, userName string) (userentity.User, error) {
+	return userentity.User{}, fmt.Errorf("not implemented")
+}
+
 func TestDeleteAccount(t *testing.T) {
 	repo := &deleteRepo{}
 	uc := NewUserDeleteUseCase(repo)

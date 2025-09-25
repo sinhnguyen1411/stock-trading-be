@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"log/slog"
@@ -37,10 +38,10 @@ func ConnectDB(cfg Config) error {
 		Loc:          time.UTC,
 	}
 	DB, err = sql.Open("mysql", dsnCfg.FormatDSN())
-    if err != nil {
-        slog.Error("MYSQL CONNECT FAILED", "error", err)
-        return err
-    }
+	if err != nil {
+		slog.Error("MYSQL CONNECT FAILED", "error", err)
+		return err
+	}
 
 	// Reasonable pool settings; adjust per workload
 	DB.SetMaxOpenConns(25)
@@ -49,13 +50,13 @@ func ConnectDB(cfg Config) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-    if err = DB.PingContext(ctx); err != nil {
-        slog.Error("MYSQL UNRESPONSIVE", "error", err)
-        return err
-    }
+	if err = DB.PingContext(ctx); err != nil {
+		slog.Error("MYSQL UNRESPONSIVE", "error", err)
+		return err
+	}
 
-    slog.Info("MYSQL CONNECTED")
-    return nil
+	slog.Info("MYSQL CONNECTED")
+	return nil
 }
 
 type MysqlUserRepository struct{ db *sql.DB }
@@ -90,17 +91,17 @@ func (r MysqlUserRepository) GetLoginInfo(ctx context.Context, userName string) 
 	var u userentity.User
 	var gender string
 	var birthday sql.NullTime
-    err := r.db.QueryRowContext(
-        ctx,
-        "SELECT id, username, password_hash, name, cmnd, birthday, gender, permanent_address, phone_number, email FROM users WHERE username = ?",
-        userName,
-    ).Scan(
-        &u.Id,
-        &login.UserName,
-        &login.Password,
-        &u.Name,
-        &u.DocumentID,
-        &birthday,
+	err := r.db.QueryRowContext(
+		ctx,
+		"SELECT id, username, password_hash, name, cmnd, birthday, gender, permanent_address, phone_number, email FROM users WHERE username = ?",
+		userName,
+	).Scan(
+		&u.Id,
+		&login.UserName,
+		&login.Password,
+		&u.Name,
+		&u.DocumentID,
+		&birthday,
 		&gender,
 		&u.PermanentAddress,
 		&u.PhoneNumber,
@@ -144,4 +145,55 @@ func (r MysqlUserRepository) DeleteUser(ctx context.Context, userName string) er
 		return fmt.Errorf("delete user failed: %w", err)
 	}
 	return nil
+}
+
+// GetUser retrieves a user profile by username.
+func (r MysqlUserRepository) GetUser(ctx context.Context, userName string) (userentity.User, error) {
+	var (
+		u         userentity.User
+		username  string
+		gender    string
+		birthday  sql.NullTime
+		createdAt sql.NullTime
+		updatedAt sql.NullTime
+	)
+
+	err := r.db.QueryRowContext(
+		ctx,
+		`SELECT id, username, name, cmnd, birthday, gender,
+                permanent_address, phone_number, email, created_at, updated_at
+         FROM users WHERE username = ?`,
+		userName,
+	).Scan(
+		&u.Id,
+		&username,
+		&u.Name,
+		&u.DocumentID,
+		&birthday,
+		&gender,
+		&u.PermanentAddress,
+		&u.PhoneNumber,
+		&u.Email,
+		&createdAt,
+		&updatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return u, fmt.Errorf("user not found")
+		}
+		return u, fmt.Errorf("query user failed: %w", err)
+	}
+
+	if birthday.Valid {
+		u.Birthday = birthday.Time
+	}
+	if createdAt.Valid {
+		u.CreatedAt = createdAt.Time
+	}
+	if updatedAt.Valid {
+		u.UpdatedAt = updatedAt.Time
+	}
+	u.Gender = strings.ToLower(gender) == "male"
+
+	return u, nil
 }

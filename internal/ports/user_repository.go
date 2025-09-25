@@ -18,4 +18,7 @@ type UserRepository interface {
 
 	// DeleteUser removes a user from repository by username.
 	DeleteUser(ctx context.Context, userName string) error
+
+	// GetUser retrieves a user by username.
+	GetUser(ctx context.Context, userName string) (user.User, error)
 }

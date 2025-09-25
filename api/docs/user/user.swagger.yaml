@@ -50,6 +50,24 @@ paths:
       tags:
         - UserService
   /api/v1/user/{username}:
+    get:
+      operationId: UserService_Get
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/user_serviceGetUserResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: username
+          in: path
+          required: true
+          type: string
+      tags:
+        - UserService
     delete:
       operationId: UserService_Delete
       responses:
@@ -216,6 +234,16 @@ definitions:
         format: int64
       message:
         type: string
+  user_serviceGetUserResponse:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int64
+      message:
+        type: string
+      data:
+        $ref: '#/definitions/user_serviceUserProfile'
   user_serviceLoginRequest:
     type: object
     properties:
@@ -263,3 +291,32 @@ definitions:
         format: int64
       message:
         type: string
+  user_serviceUserProfile:
+    type: object
+    properties:
+      id:
+        type: string
+        format: int64
+      username:
+        type: string
+      name:
+        type: string
+      email:
+        type: string
+      cmnd:
+        type: string
+      birthday:
+        type: string
+        format: int64
+      gender:
+        type: boolean
+      permanentAddress:
+        type: string
+      phoneNumber:
+        type: string
+      createdAt:
+        type: string
+        format: int64
+      updatedAt:
+        type: string
+        format: int64
