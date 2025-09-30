@@ -54,6 +54,7 @@ func (u UserRegisterUseCase) RegisterAccount(ctx context.Context, req RequestReg
 
 	usermodel := userentity.User{
 		Id:               0, //insert into database will create userID
+		Username:         req.Username,
 		Name:             req.Name,
 		Email:            req.Email,
 		DocumentID:       req.Cmnd,

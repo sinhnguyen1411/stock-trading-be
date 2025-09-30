@@ -11,5 +11,7 @@ http:
 auth:
   access_token_secret: "local-dev-secret-change-me"
   access_token_ttl_minutes: 15
+  refresh_token_secret: "local-refresh-secret-change-me"
+  refresh_token_ttl_minutes: 4320
   issuer: "stock-trading-be"
   audience: "stock-trading-clients"

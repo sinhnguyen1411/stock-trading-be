@@ -16,8 +16,11 @@ type UserService struct {
 	user.UnimplementedUserServiceServer
 	userUseCase           user2.UserRegisterUseCase
 	loginUseCase          user2.UserLoginUseCase
+	refreshUseCase        user2.UserTokenRefreshUseCase
+	logoutUseCase         user2.UserLogoutUseCase
 	deleteUseCase         user2.UserDeleteUseCase
 	getUseCase            user2.UserGetUseCase
+	listUseCase           user2.UserListUseCase
 	updateUseCase         user2.UserUpdateUseCase
 	changePasswordUseCase user2.UserChangePasswordUseCase
 }
@@ -25,16 +28,22 @@ type UserService struct {
 func NewUserService(
 	registerUseCase user2.UserRegisterUseCase,
 	loginUseCase user2.UserLoginUseCase,
+	refreshUseCase user2.UserTokenRefreshUseCase,
+	logoutUseCase user2.UserLogoutUseCase,
 	deleteUseCase user2.UserDeleteUseCase,
 	getUseCase user2.UserGetUseCase,
+	listUseCase user2.UserListUseCase,
 	updateUseCase user2.UserUpdateUseCase,
 	changePasswordUseCase user2.UserChangePasswordUseCase,
 ) *UserService {
 	return &UserService{
 		userUseCase:           registerUseCase,
 		loginUseCase:          loginUseCase,
+		refreshUseCase:        refreshUseCase,
+		logoutUseCase:         logoutUseCase,
 		deleteUseCase:         deleteUseCase,
 		getUseCase:            getUseCase,
+		listUseCase:           listUseCase,
 		updateUseCase:         updateUseCase,
 		changePasswordUseCase: changePasswordUseCase,
 	}
@@ -95,7 +104,7 @@ func (s *UserService) Get(ctx context.Context, req *user.GetUserRequest) (*user.
 		Message: codes.OK.String(),
 		Data: &user.UserProfile{
 			Id:               entity.Id,
-			Username:         req.GetUsername(),
+			Username:         entity.Username,
 			Name:             entity.Name,
 			Email:            entity.Email,
 			Cmnd:             entity.DocumentID,
@@ -106,6 +115,54 @@ func (s *UserService) Get(ctx context.Context, req *user.GetUserRequest) (*user.
 			CreatedAt:        created,
 			UpdatedAt:        updated,
 		},
+	}, nil
+}
+
+func (s *UserService) List(ctx context.Context, req *user.ListUsersRequest) (*user.ListUsersResponse, error) {
+	result, err := s.listUseCase.List(ctx, req.GetPage(), req.GetPageSize())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "list users: %v", err)
+	}
+
+	profiles := make([]*user.UserProfile, 0, len(result.Users))
+	for _, entity := range result.Users {
+		var (
+			birthday int64
+			created  int64
+			updated  int64
+		)
+		if !entity.Birthday.IsZero() {
+			birthday = entity.Birthday.Unix()
+		}
+		if !entity.CreatedAt.IsZero() {
+			created = entity.CreatedAt.Unix()
+		}
+		if !entity.UpdatedAt.IsZero() {
+			updated = entity.UpdatedAt.Unix()
+		}
+
+		profiles = append(profiles, &user.UserProfile{
+			Id:               entity.Id,
+			Username:         entity.Username,
+			Name:             entity.Name,
+			Email:            entity.Email,
+			Cmnd:             entity.DocumentID,
+			Birthday:         birthday,
+			Gender:           entity.Gender,
+			PermanentAddress: entity.PermanentAddress,
+			PhoneNumber:      entity.PhoneNumber,
+			CreatedAt:        created,
+			UpdatedAt:        updated,
+		})
+	}
+
+	return &user.ListUsersResponse{
+		Code:     uint32(codes.OK),
+		Message:  codes.OK.String(),
+		Data:     profiles,
+		Total:    uint64(result.Total),
+		Page:     result.Page,
+		PageSize: result.PageSize,
 	}, nil
 }
 

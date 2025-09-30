@@ -1,9 +1,10 @@
-﻿package user
+package user
 
 import "time"
 
 type User struct {
 	Id               int64
+	Username         string
 	Name             string
 	Email            string
 	DocumentID       string //CMND

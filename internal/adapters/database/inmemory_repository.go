@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -99,6 +100,49 @@ func (r *InMemoryUserRepository) GetUser(ctx context.Context, userName string) (
 		return userentity.User{}, fmt.Errorf("user not found")
 	}
 	return user, nil
+}
+
+// ListUsers returns a slice of users respecting pagination parameters.
+func (r *InMemoryUserRepository) ListUsers(ctx context.Context, params ports.ListUsersParams) ([]userentity.User, int64, error) {
+	_ = ctx
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	usernames := make([]string, 0, len(r.users))
+	for username := range r.users {
+		usernames = append(usernames, username)
+	}
+	sort.Strings(usernames)
+
+	total := int64(len(usernames))
+
+	limit := params.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	offset := params.Offset
+	if offset < 0 {
+		offset = 0
+	}
+	if offset >= len(usernames) {
+		return []userentity.User{}, total, nil
+	}
+
+	end := offset + limit
+	if end > len(usernames) {
+		end = len(usernames)
+	}
+
+	result := make([]userentity.User, 0, end-offset)
+	for _, username := range usernames[offset:end] {
+		result = append(result, r.users[username])
+	}
+
+	return result, total, nil
 }
 
 // UpdateUser updates an existing user in the in-memory repository.

@@ -21,10 +21,12 @@ type Config struct {
 }
 
 type AuthConfig struct {
-	AccessTokenSecret     string `json:"access_token_secret" mapstructure:"access_token_secret" yaml:"access_token_secret"`
-	AccessTokenTTLMinutes int    `json:"access_token_ttl_minutes" mapstructure:"access_token_ttl_minutes" yaml:"access_token_ttl_minutes"`
-	Issuer                string `json:"issuer" mapstructure:"issuer" yaml:"issuer"`
-	Audience              string `json:"audience" mapstructure:"audience" yaml:"audience"`
+	AccessTokenSecret      string `json:"access_token_secret" mapstructure:"access_token_secret" yaml:"access_token_secret"`
+	AccessTokenTTLMinutes  int    `json:"access_token_ttl_minutes" mapstructure:"access_token_ttl_minutes" yaml:"access_token_ttl_minutes"`
+	RefreshTokenSecret     string `json:"refresh_token_secret" mapstructure:"refresh_token_secret" yaml:"refresh_token_secret"`
+	RefreshTokenTTLMinutes int    `json:"refresh_token_ttl_minutes" mapstructure:"refresh_token_ttl_minutes" yaml:"refresh_token_ttl_minutes"`
+	Issuer                 string `json:"issuer" mapstructure:"issuer" yaml:"issuer"`
+	Audience               string `json:"audience" mapstructure:"audience" yaml:"audience"`
 }
 
 func loadDefaultConfig() *Config {
@@ -46,10 +48,12 @@ func loadDefaultConfig() *Config {
 			Name:     "stock",
 		},
 		Auth: AuthConfig{
-			AccessTokenSecret:     "change-me-in-production-please",
-			AccessTokenTTLMinutes: 15,
-			Issuer:                "stock-trading-be",
-			Audience:              "stock-trading-clients",
+			AccessTokenSecret:      "change-me-in-production-please",
+			AccessTokenTTLMinutes:  15,
+			RefreshTokenSecret:     "change-me-in-production-too",
+			RefreshTokenTTLMinutes: 60 * 24 * 3,
+			Issuer:                 "stock-trading-be",
+			Audience:               "stock-trading-clients",
 		},
 	}
 }

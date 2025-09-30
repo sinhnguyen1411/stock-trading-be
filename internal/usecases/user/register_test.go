@@ -31,6 +31,9 @@ func (r InMemoryUserRepository) DeleteUser(ctx context.Context, userName string)
 func (r InMemoryUserRepository) GetUser(ctx context.Context, userName string) (userentity.User, error) {
 	return userentity.User{}, fmt.Errorf("not implemented")
 }
+func (r InMemoryUserRepository) ListUsers(ctx context.Context, params ports.ListUsersParams) ([]userentity.User, int64, error) {
+	return nil, 0, fmt.Errorf("not implemented")
+}
 
 func (r InMemoryUserRepository) UpdateUser(ctx context.Context, userName string, updated userentity.User) error {
 	return nil

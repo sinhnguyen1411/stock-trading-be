@@ -12,26 +12,31 @@ import (
 )
 
 type UserLoginUseCase struct {
-	repository  ports.UserRepository
-	tokenIssuer security.AccessTokenManager
+	repository    ports.UserRepository
+	accessTokens  security.AccessTokenManager
+	refreshTokens security.RefreshTokenManager
 }
 
-func NewUserLoginUseCase(repo ports.UserRepository, tokenIssuer security.AccessTokenManager) UserLoginUseCase {
-	return UserLoginUseCase{repository: repo, tokenIssuer: tokenIssuer}
+func NewUserLoginUseCase(repo ports.UserRepository, accessTokens security.AccessTokenManager, refreshTokens security.RefreshTokenManager) UserLoginUseCase {
+	return UserLoginUseCase{repository: repo, accessTokens: accessTokens, refreshTokens: refreshTokens}
 }
 
-// Login validates user credentials and returns a signed access token along with user info when successful.
-func (u UserLoginUseCase) Login(ctx context.Context, username, password string) (string, time.Time, userentity.User, error) {
+// Login validates user credentials and returns access & refresh tokens along with user info when successful.
+func (u UserLoginUseCase) Login(ctx context.Context, username, password string) (string, time.Time, string, time.Time, userentity.User, error) {
 	info, userInfo, err := u.repository.GetLoginInfo(ctx, username)
 	if err != nil {
-		return "", time.Time{}, userentity.User{}, fmt.Errorf("get login info: %w", err)
+		return "", time.Time{}, "", time.Time{}, userentity.User{}, fmt.Errorf("get login info: %w", err)
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(info.Password), []byte(password)); err != nil {
-		return "", time.Time{}, userentity.User{}, fmt.Errorf("invalid credentials")
+		return "", time.Time{}, "", time.Time{}, userentity.User{}, fmt.Errorf("invalid credentials")
 	}
-	token, expiresAt, err := u.tokenIssuer.GenerateAccessToken(userInfo.Id, username)
+	accessToken, accessExpires, err := u.accessTokens.GenerateAccessToken(userInfo.Id, username)
 	if err != nil {
-		return "", time.Time{}, userentity.User{}, fmt.Errorf("generate token: %w", err)
+		return "", time.Time{}, "", time.Time{}, userentity.User{}, fmt.Errorf("generate access token: %w", err)
 	}
-	return token, expiresAt, userInfo, nil
+	refreshToken, refreshExpires, err := u.refreshTokens.GenerateRefreshToken(userInfo.Id, username)
+	if err != nil {
+		return "", time.Time{}, "", time.Time{}, userentity.User{}, fmt.Errorf("generate refresh token: %w", err)
+	}
+	return accessToken, accessExpires, refreshToken, refreshExpires, userInfo, nil
 }

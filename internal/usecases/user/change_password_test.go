@@ -17,7 +17,7 @@ func TestUserChangePasswordUseCase(t *testing.T) {
 	hashed, err := bcrypt.GenerateFromPassword([]byte("oldpass"), bcrypt.DefaultCost)
 	require.NoError(t, err)
 
-	userModel := userentity.User{Name: "Bob", Email: "bob@example.com"}
+	userModel := userentity.User{Username: "bob123", Name: "Bob", Email: "bob@example.com"}
 	login := userentity.LoginMethodPassword{UserName: "bob123", Password: string(hashed)}
 	require.NoError(t, repo.InsertRegisterInfo(ctx, userModel, login))
 
@@ -36,7 +36,7 @@ func TestUserChangePasswordUseCase_InvalidOldPassword(t *testing.T) {
 
 	hashed, err := bcrypt.GenerateFromPassword([]byte("oldpass"), bcrypt.DefaultCost)
 	require.NoError(t, err)
-	require.NoError(t, repo.InsertRegisterInfo(ctx, userentity.User{Name: "Bob", Email: "bob@example.com"}, userentity.LoginMethodPassword{UserName: "bob123", Password: string(hashed)}))
+	require.NoError(t, repo.InsertRegisterInfo(ctx, userentity.User{Username: "bob123", Name: "Bob", Email: "bob@example.com"}, userentity.LoginMethodPassword{UserName: "bob123", Password: string(hashed)}))
 
 	uc := NewUserChangePasswordUseCase(repo)
 	err = uc.ChangePassword(ctx, "bob123", "wrong", "newpass")

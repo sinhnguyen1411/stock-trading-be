@@ -12,14 +12,28 @@ import "protoc-gen-swagger/options/annotations.proto";
 service UserService {
   rpc Register(RegisterRequest) returns (RegisterResponse) {
     option (google.api.http) = {
-      put: "/api/v1/user/register"
+      put: "/api/v1/user/register",
       body: "*"
     };
   }
 
   rpc Login(LoginRequest) returns (LoginResponse) {
     option (google.api.http) = {
-      post: "/api/v1/user/login"
+      post: "/api/v1/user/login",
+      body: "*"
+    };
+  }
+
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/token/refresh",
+      body: "*"
+    };
+  }
+
+  rpc Logout(LogoutRequest) returns (LogoutResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/user/logout",
       body: "*"
     };
   }
@@ -38,15 +52,21 @@ service UserService {
 
   rpc Update(UpdateUserRequest) returns (UpdateUserResponse) {
     option (google.api.http) = {
-      patch: "/api/v1/user/{username}"
+      patch: "/api/v1/user/{username}",
       body: "*"
     };
   }
 
   rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse) {
     option (google.api.http) = {
-      post: "/api/v1/user/{username}/password"
+      post: "/api/v1/user/{username}/password",
       body: "*"
+    };
+  }
+
+  rpc List(ListUsersRequest) returns (ListUsersResponse) {
+    option (google.api.http) = {
+      get: "/api/v1/users"
     };
   }
 }
@@ -79,9 +99,31 @@ message LoginResponse {
 
   message Data {
     string token = 1;
+    int64 token_expires_at_unix = 2;
+    string refresh_token = 3;
+    int64 refresh_token_expires_at_unix = 4;
   }
 
   Data data = 3;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1 [(validate.rules).string = {min_len: 10}];
+}
+
+message RefreshTokenResponse {
+  uint32 code = 1;
+  string message = 2;
+  LoginResponse.Data data = 3;
+}
+
+message LogoutRequest {
+  string refresh_token = 1 [(validate.rules).string = {min_len: 10}];
+}
+
+message LogoutResponse {
+  uint32 code = 1;
+  string message = 2;
 }
 
 message DeleteRequest {
@@ -103,29 +145,15 @@ message GetUserResponse {
   UserProfile data = 3;
 }
 
-message UserProfile {
-  int64 id = 1;
-  string username = 2;
-  string name = 3;
-  string email = 4;
-  string cmnd = 5;
-  int64 birthday = 6;
-  bool gender = 7;
-  string permanent_address = 8;
-  string phone_number = 9;
-  int64 created_at = 10;
-  int64 updated_at = 11;
-}
-
 message UpdateUserRequest {
   string username = 1 [(validate.rules).string = {min_len: 6, max_len: 16}];
   string email = 2 [(validate.rules).string = {min_len: 6, max_len: 64}];
   string name = 3 [(validate.rules).string = {min_len: 3, max_len: 64}];
-  string cmnd = 4 [(validate.rules).string = {min_len: 6, max_len: 16}];
+  string cmnd = 4;
   int64 birthday = 5;
   bool gender = 6;
   string permanent_address = 7;
-  string phone_number = 8 [(validate.rules).string = {min_len: 9, max_len: 13}];
+  string phone_number = 8;
 }
 
 message UpdateUserResponse {
@@ -142,4 +170,32 @@ message ChangePasswordRequest {
 message ChangePasswordResponse {
   uint32 code = 1;
   string message = 2;
+}
+
+message ListUsersRequest {
+  uint32 page = 1;
+  uint32 page_size = 2;
+}
+
+message ListUsersResponse {
+  uint32 code = 1;
+  string message = 2;
+  repeated UserProfile data = 3;
+  uint64 total = 4;
+  uint32 page = 5;
+  uint32 page_size = 6;
+}
+
+message UserProfile {
+  int64 id = 1;
+  string username = 2;
+  string name = 3;
+  string email = 4;
+  string cmnd = 5;
+  int64 birthday = 6;
+  bool gender = 7;
+  string permanent_address = 8;
+  string phone_number = 9;
+  int64 created_at = 10;
+  int64 updated_at = 11;
 }

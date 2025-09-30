@@ -43,6 +43,7 @@ func StartHTTPServer(cfg *config.Config) error {
 	if cfg.Env == "local" {
 		shadow := *cfg
 		shadow.Auth.AccessTokenSecret = "***"
+		shadow.Auth.RefreshTokenSecret = "***"
 		bs, err := json.Marshal(shadow)
 		if err != nil {
 			return fmt.Errorf("failed to marshal config: %w", err)
@@ -50,9 +51,9 @@ func StartHTTPServer(cfg *config.Config) error {
 		slog.Info("SERVER START CONFIG", "config", string(bs))
 	}
 
-	tokenManager, err := buildAccessTokenManager(cfg.Auth)
+	accessTokens, refreshTokens, err := buildTokenManagers(cfg.Auth)
 	if err != nil {
-		return fmt.Errorf("failed to init token manager: %w", err)
+		return fmt.Errorf("failed to init token managers: %w", err)
 	}
 
 	stop := make(chan os.Signal, 1)
@@ -66,7 +67,6 @@ func StartHTTPServer(cfg *config.Config) error {
 		}
 	}()
 
-	//init infrastructure
 	infra, err := InitInfrastructure(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to init infrastructure: %w", err)
@@ -77,14 +77,12 @@ func StartHTTPServer(cfg *config.Config) error {
 		return fmt.Errorf("failed to new adapters: %w", err)
 	}
 
-	// new application
-	grpcServices, err := NewGrpcServices(*cfg, tokenManager, infra, adapters)
+	grpcServices, err := NewGrpcServices(*cfg, accessTokens, refreshTokens, infra, adapters)
 	if err != nil {
 		return fmt.Errorf("failed to new grpc services: %w", err)
 	}
 
-	// start server
-	grpcStop, cgrpcerr := grpcadapter.StartServer(cfg.GRPC, tokenManager, grpcServices...)
+	grpcStop, cgrpcerr := grpcadapter.StartServer(cfg.GRPC, accessTokens, grpcServices...)
 	go func() {
 		for gerr := range cgrpcerr {
 			cerr <- fmt.Errorf("grpc server error: %w", gerr)
@@ -92,7 +90,6 @@ func StartHTTPServer(cfg *config.Config) error {
 	}()
 	defer grpcStop()
 
-	// start http server
 	httpgwServices, err := NewHTTPGatewayServices(*cfg, infra)
 	if err != nil {
 		return fmt.Errorf("failed to new http gateway services: %w", err)

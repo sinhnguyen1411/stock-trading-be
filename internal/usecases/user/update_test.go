@@ -57,3 +57,27 @@ func TestUserUpdateUseCase_EmptyUsername(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorIs(t, err, ErrUpdateEmptyUsername)
 }
+
+func TestUserUpdateUseCase_EmptyEmail(t *testing.T) {
+	repo := database.NewInMemoryUserRepository()
+	uc := NewUserUpdateUseCase(repo)
+
+	err := uc.UpdateProfile(context.Background(), "alice123", RequestUpdate{
+		Email: "",
+		Name:  "Alice",
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrUpdateEmptyEmail)
+}
+
+func TestUserUpdateUseCase_EmptyName(t *testing.T) {
+	repo := database.NewInMemoryUserRepository()
+	uc := NewUserUpdateUseCase(repo)
+
+	err := uc.UpdateProfile(context.Background(), "alice123", RequestUpdate{
+		Email: "alice@example.com",
+		Name:  "",
+	})
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrUpdateEmptyName)
+}

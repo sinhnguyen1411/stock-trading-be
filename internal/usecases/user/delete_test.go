@@ -38,6 +38,10 @@ func (r *deleteRepo) GetUser(ctx context.Context, userName string) (userentity.U
 	return userentity.User{}, fmt.Errorf("not implemented")
 }
 
+func (r *deleteRepo) ListUsers(ctx context.Context, params ports.ListUsersParams) ([]userentity.User, int64, error) {
+	return nil, 0, fmt.Errorf("not implemented")
+}
+
 func TestDeleteAccount(t *testing.T) {
 	repo := &deleteRepo{}
 	uc := NewUserDeleteUseCase(repo)

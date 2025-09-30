@@ -9,6 +9,26 @@ consumes:
 produces:
   - application/json
 paths:
+  /api/v1/token/refresh:
+    post:
+      operationId: UserService_RefreshToken
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/user_serviceRefreshTokenResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/user_serviceRefreshTokenRequest'
+      tags:
+        - UserService
   /api/v1/user/login:
     post:
       operationId: UserService_Login
@@ -27,6 +47,26 @@ paths:
           required: true
           schema:
             $ref: '#/definitions/user_serviceLoginRequest'
+      tags:
+        - UserService
+  /api/v1/user/logout:
+    post:
+      operationId: UserService_Logout
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/user_serviceLogoutResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/user_serviceLogoutRequest'
       tags:
         - UserService
   /api/v1/user/register:
@@ -133,12 +173,45 @@ paths:
             $ref: '#/definitions/UserServiceChangePasswordBody'
       tags:
         - UserService
+  /api/v1/users:
+    get:
+      operationId: UserService_List
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/user_serviceListUsersResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: page
+          in: query
+          required: false
+          type: integer
+          format: int64
+        - name: pageSize
+          in: query
+          required: false
+          type: integer
+          format: int64
+      tags:
+        - UserService
 definitions:
   LoginResponseData:
     type: object
     properties:
       token:
         type: string
+      tokenExpiresAtUnix:
+        type: string
+        format: int64
+      refreshToken:
+        type: string
+      refreshTokenExpiresAtUnix:
+        type: string
+        format: int64
   UserServiceChangePasswordBody:
     type: object
     properties:
@@ -324,6 +397,28 @@ definitions:
         type: string
       data:
         $ref: '#/definitions/user_serviceUserProfile'
+  user_serviceListUsersResponse:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int64
+      message:
+        type: string
+      data:
+        type: array
+        items:
+          type: object
+          $ref: '#/definitions/user_serviceUserProfile'
+      total:
+        type: string
+        format: uint64
+      page:
+        type: integer
+        format: int64
+      pageSize:
+        type: integer
+        format: int64
   user_serviceLoginRequest:
     type: object
     properties:
@@ -332,6 +427,34 @@ definitions:
       password:
         type: string
   user_serviceLoginResponse:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int64
+      message:
+        type: string
+      data:
+        $ref: '#/definitions/LoginResponseData'
+  user_serviceLogoutRequest:
+    type: object
+    properties:
+      refreshToken:
+        type: string
+  user_serviceLogoutResponse:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int64
+      message:
+        type: string
+  user_serviceRefreshTokenRequest:
+    type: object
+    properties:
+      refreshToken:
+        type: string
+  user_serviceRefreshTokenResponse:
     type: object
     properties:
       code:

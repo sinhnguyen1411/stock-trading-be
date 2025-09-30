@@ -59,13 +59,13 @@
 |   |   \-- user_repository.go
 |   \-- usecases/
 |       \-- user/
+|           +-- change_password.go
 |           +-- delete.go
-|           +-- delete_test.go
 |           +-- get.go
+|           +-- list.go
 |           +-- login.go
-|           +-- login_test.go
 |           +-- register.go
-|           \-- register_test.go
+|           +-- update.go
 +-- .gitattributes
 +-- .gitignore
 +-- README.md
@@ -79,17 +79,30 @@
 
 HTTP Gateway using `net/http` forwards REST requests to the internal gRPC services.
 
-## API
-The APIs are defined in `UserService`:
+## User API Surface
+All user endpoints are defined in the protobuf service `UserService` and exposed through the HTTP Gateway. Pagination defaults to page `1` with `20` items per page (capped at `100`).
 
 | Method | Path | Description |
 | ------ | ----- | ----------- |
 | PUT    | `/api/v1/user/register` | Register a user |
-| POST   | `/api/v1/user/login`    | User login |
+| POST   | `/api/v1/user/login`    | User login (returns access & refresh tokens) |
+| POST   | `/api/v1/token/refresh` | Rotate tokens using a refresh token |
+| POST   | `/api/v1/user/logout`   | Revoke a refresh token |
 | GET    | `/api/v1/user/{username}` | Get a user profile |
 | PATCH  | `/api/v1/user/{username}` | Update a user profile |
 | POST   | `/api/v1/user/{username}/password` | Change a user password |
 | DELETE | `/api/v1/user/{username}` | Delete a user |
+| GET    | `/api/v1/users?page=&page_size=` | List users with pagination |
+
+### List Users Parameters
+- `page`: optional, starts at 1 (default `1`).
+- `page_size`: optional, defaults to `20`, maximum `100`.
+- Response body contains `data` (array of user profiles), `total`, `page`, and `page_size`.
+
+### Token Lifecycle
+- `Login` responds with both an access token (short TTL) and refresh token (long TTL).
+- `RefreshToken` rotates both tokens and revokes the supplied refresh token.
+- `Logout` revokes the provided refresh token without issuing new tokens.
 
 ## How to Run
 1. Start MySQL
@@ -104,7 +117,12 @@ The APIs are defined in `UserService`:
    - database: `stock`
    The initialization script is located at `internal/adapters/database/init_database.sql`.
 
-2. Run the server
+2. Run unit tests (in-memory adapters cover the service layer):
+   ```bash
+   go test ./...
+   ```
+
+3. Start the server
    ```bash
    go run main.go server --config ./cmd/server/config/local.yaml
    ```
@@ -112,11 +130,11 @@ The APIs are defined in `UserService`:
    - HTTP gateway (REST): `localhost:8080`
 
 ## SQL Connection
-The `ConnectDB` function initializes a MySQL connection based on the above configuration and uses `database/sql` with the `go-sql-driver/mysql` driver.
+The `ConnectDB` function initializes a MySQL connection based on the above configuration and uses `database/sql` with the `go-sql-driver/mysql` driver. All user queries populate the exported `Username` field that the gRPC layer returns to clients.
 
 ## Authentication
-- Access tokens are signed JWTs issued by the login endpoint. Configure the signing secret and lifetime via `auth.access_token_secret` and `auth.access_token_ttl_minutes` in `cmd/server/config/local.yaml` (or `AUTH__ACCESS_TOKEN_SECRET` environment variable).
+- Access tokens are signed JWTs issued by the login endpoint. Configure `auth.access_token_secret` and `auth.access_token_ttl_minutes` in `cmd/server/config/local.yaml` (or `AUTH__ACCESS_TOKEN_SECRET` env var).
+- Refresh tokens are independent JWTs with longer TTL (`auth.refresh_token_secret`, `auth.refresh_token_ttl_minutes`). They are rotated on refresh and revoked on logout within the in-memory blacklist.
 - The gRPC gateway forwards `Authorization: Bearer <token>` headers to backend services. All non-public RPCs enforce token verification.
 - Rotate secrets regularly in production and keep them outside version control (for example, via environment variables or a secret manager).
-
 

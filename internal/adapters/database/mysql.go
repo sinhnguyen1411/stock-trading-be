@@ -201,6 +201,85 @@ func (r MysqlUserRepository) GetUser(ctx context.Context, userName string) (user
 	return u, nil
 }
 
+// ListUsers returns users with pagination support and total count.
+func (r MysqlUserRepository) ListUsers(ctx context.Context, params ports.ListUsersParams) ([]userentity.User, int64, error) {
+	limit := params.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	offset := params.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, username, name, cmnd, birthday, gender,
+                permanent_address, phone_number, email, created_at, updated_at
+         FROM users
+         ORDER BY id ASC
+         LIMIT ? OFFSET ?`,
+		limit, offset,
+	)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list users query failed: %w", err)
+	}
+	defer rows.Close()
+
+	users := make([]userentity.User, 0, limit)
+	for rows.Next() {
+		var (
+			u         userentity.User
+			username  string
+			gender    string
+			birthday  sql.NullTime
+			createdAt sql.NullTime
+			updatedAt sql.NullTime
+		)
+
+		if err := rows.Scan(
+			&u.Id,
+			&username,
+			&u.Name,
+			&u.DocumentID,
+			&birthday,
+			&gender,
+			&u.PermanentAddress,
+			&u.PhoneNumber,
+			&u.Email,
+			&createdAt,
+			&updatedAt,
+		); err != nil {
+			return nil, 0, fmt.Errorf("scan user: %w", err)
+		}
+
+		if birthday.Valid {
+			u.Birthday = birthday.Time
+		}
+		if createdAt.Valid {
+			u.CreatedAt = createdAt.Time
+		}
+		if updatedAt.Valid {
+			u.UpdatedAt = updatedAt.Time
+		}
+		u.Gender = strings.ToLower(gender) == "male"
+
+		users = append(users, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate users: %w", err)
+	}
+
+	var total int64
+	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count users failed: %w", err)
+	}
+
+	return users, total, nil
+}
+
 // UpdateUser updates profile data for the given username.
 func (r MysqlUserRepository) UpdateUser(ctx context.Context, userName string, updated userentity.User) error {
 	gender := "female"
