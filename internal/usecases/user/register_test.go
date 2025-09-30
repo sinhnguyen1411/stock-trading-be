@@ -32,6 +32,14 @@ func (r InMemoryUserRepository) GetUser(ctx context.Context, userName string) (u
 	return userentity.User{}, fmt.Errorf("not implemented")
 }
 
+func (r InMemoryUserRepository) UpdateUser(ctx context.Context, userName string, updated userentity.User) error {
+	return nil
+}
+
+func (r InMemoryUserRepository) UpdatePassword(ctx context.Context, userName, hashedPassword string) error {
+	return nil
+}
+
 func TestRegister(t *testing.T) {
 	usecase := UserRegisterUseCase{
 		repository: InMemoryUserRepository{},

@@ -5,6 +5,7 @@ go 1.23.2
 require (
 	github.com/envoyproxy/protoc-gen-validate v1.2.1
 	github.com/go-sql-driver/mysql v1.9.0
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3

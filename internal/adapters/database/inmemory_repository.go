@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	userentity "github.com/sinhnguyen1411/stock-trading-be/internal/entities/user"
 	"github.com/sinhnguyen1411/stock-trading-be/internal/ports"
@@ -65,9 +66,12 @@ func (r *InMemoryUserRepository) InsertRegisterInfo(ctx context.Context, user us
 	if _, ok := r.emailIndex[user.Email]; ok {
 		return fmt.Errorf("username or email already exists")
 	}
+	user.CreatedAt = time.Now().UTC()
 	r.users[loginMethod.UserName] = user
 	r.logins[loginMethod.UserName] = loginMethod
-	r.emailIndex[user.Email] = loginMethod.UserName
+	if user.Email != "" {
+		r.emailIndex[user.Email] = loginMethod.UserName
+	}
 	return nil
 }
 
@@ -95,4 +99,50 @@ func (r *InMemoryUserRepository) GetUser(ctx context.Context, userName string) (
 		return userentity.User{}, fmt.Errorf("user not found")
 	}
 	return user, nil
+}
+
+// UpdateUser updates an existing user in the in-memory repository.
+func (r *InMemoryUserRepository) UpdateUser(ctx context.Context, userName string, updated userentity.User) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	current, ok := r.users[userName]
+	if !ok {
+		return fmt.Errorf("user not found")
+	}
+
+	if updated.Email != "" {
+		if owner, exists := r.emailIndex[updated.Email]; exists && owner != userName {
+			return fmt.Errorf("username or email already exists")
+		}
+	}
+
+	updated.Id = current.Id
+	updated.CreatedAt = current.CreatedAt
+	if updated.UpdatedAt.IsZero() {
+		updated.UpdatedAt = time.Now().UTC()
+	}
+
+	r.users[userName] = updated
+
+	delete(r.emailIndex, current.Email)
+	if updated.Email != "" {
+		r.emailIndex[updated.Email] = userName
+	}
+
+	return nil
+}
+
+// UpdatePassword updates the password hash for a user in memory.
+func (r *InMemoryUserRepository) UpdatePassword(ctx context.Context, userName, hashedPassword string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	login, ok := r.logins[userName]
+	if !ok {
+		return fmt.Errorf("user not found")
+	}
+	login.Password = hashedPassword
+	r.logins[userName] = login
+	return nil
 }

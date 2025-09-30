@@ -17,6 +17,14 @@ type Config struct {
 	GRPC grpc_server.Config  `json:"grpc" mapstructure:"grpc"`
 	HTTP http_gateway.Config `json:"http" mapstructure:"http"`
 	DB   database.Config     `json:"db" mapstructure:"db"`
+	Auth AuthConfig          `json:"auth" mapstructure:"auth"`
+}
+
+type AuthConfig struct {
+	AccessTokenSecret     string `json:"access_token_secret" mapstructure:"access_token_secret" yaml:"access_token_secret"`
+	AccessTokenTTLMinutes int    `json:"access_token_ttl_minutes" mapstructure:"access_token_ttl_minutes" yaml:"access_token_ttl_minutes"`
+	Issuer                string `json:"issuer" mapstructure:"issuer" yaml:"issuer"`
+	Audience              string `json:"audience" mapstructure:"audience" yaml:"audience"`
 }
 
 func loadDefaultConfig() *Config {
@@ -36,6 +44,12 @@ func loadDefaultConfig() *Config {
 			User:     "stock_user",
 			Password: "ps123456",
 			Name:     "stock",
+		},
+		Auth: AuthConfig{
+			AccessTokenSecret:     "change-me-in-production-please",
+			AccessTokenTTLMinutes: 15,
+			Issuer:                "stock-trading-be",
+			Audience:              "stock-trading-clients",
 		},
 	}
 }

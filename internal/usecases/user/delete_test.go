@@ -48,3 +48,11 @@ func TestDeleteAccount(t *testing.T) {
 	err = uc.DeleteAccount(context.Background(), "")
 	assert.Error(t, err)
 }
+
+func (r *deleteRepo) UpdateUser(ctx context.Context, userName string, updated userentity.User) error {
+	return nil
+}
+
+func (r *deleteRepo) UpdatePassword(ctx context.Context, userName, hashedPassword string) error {
+	return nil
+}

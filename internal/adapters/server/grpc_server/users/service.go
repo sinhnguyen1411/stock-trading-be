@@ -2,6 +2,7 @@ package users
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/sinhnguyen1411/stock-trading-be/api/grpc/user"
@@ -13,10 +14,12 @@ import (
 
 type UserService struct {
 	user.UnimplementedUserServiceServer
-	userUseCase   user2.UserRegisterUseCase
-	loginUseCase  user2.UserLoginUseCase
-	deleteUseCase user2.UserDeleteUseCase
-	getUseCase    user2.UserGetUseCase
+	userUseCase           user2.UserRegisterUseCase
+	loginUseCase          user2.UserLoginUseCase
+	deleteUseCase         user2.UserDeleteUseCase
+	getUseCase            user2.UserGetUseCase
+	updateUseCase         user2.UserUpdateUseCase
+	changePasswordUseCase user2.UserChangePasswordUseCase
 }
 
 func NewUserService(
@@ -24,12 +27,16 @@ func NewUserService(
 	loginUseCase user2.UserLoginUseCase,
 	deleteUseCase user2.UserDeleteUseCase,
 	getUseCase user2.UserGetUseCase,
+	updateUseCase user2.UserUpdateUseCase,
+	changePasswordUseCase user2.UserChangePasswordUseCase,
 ) *UserService {
 	return &UserService{
-		userUseCase:   registerUseCase,
-		loginUseCase:  loginUseCase,
-		deleteUseCase: deleteUseCase,
-		getUseCase:    getUseCase,
+		userUseCase:           registerUseCase,
+		loginUseCase:          loginUseCase,
+		deleteUseCase:         deleteUseCase,
+		getUseCase:            getUseCase,
+		updateUseCase:         updateUseCase,
+		changePasswordUseCase: changePasswordUseCase,
 	}
 }
 
@@ -99,5 +106,53 @@ func (s *UserService) Get(ctx context.Context, req *user.GetUserRequest) (*user.
 			CreatedAt:        created,
 			UpdatedAt:        updated,
 		},
+	}, nil
+}
+
+func (s *UserService) Update(ctx context.Context, req *user.UpdateUserRequest) (*user.UpdateUserResponse, error) {
+	err := s.updateUseCase.UpdateProfile(ctx, req.GetUsername(), user2.RequestUpdate{
+		Email:            req.GetEmail(),
+		Name:             req.GetName(),
+		Cmnd:             req.GetCmnd(),
+		Birthday:         req.GetBirthday(),
+		Gender:           req.GetGender(),
+		PermanentAddress: req.GetPermanentAddress(),
+		PhoneNumber:      req.GetPhoneNumber(),
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, user2.ErrUpdateEmptyUsername), errors.Is(err, user2.ErrUpdateEmptyEmail), errors.Is(err, user2.ErrUpdateEmptyName):
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		case strings.Contains(strings.ToLower(err.Error()), "not found"):
+			return nil, status.Errorf(codes.NotFound, "update user: %v", err)
+		default:
+			return nil, status.Errorf(codes.Internal, "update user: %v", err)
+		}
+	}
+
+	return &user.UpdateUserResponse{
+		Code:    uint32(codes.OK),
+		Message: codes.OK.String(),
+	}, nil
+}
+
+func (s *UserService) ChangePassword(ctx context.Context, req *user.ChangePasswordRequest) (*user.ChangePasswordResponse, error) {
+	err := s.changePasswordUseCase.ChangePassword(ctx, req.GetUsername(), req.GetOldPassword(), req.GetNewPassword())
+	if err != nil {
+		switch {
+		case errors.Is(err, user2.ErrChangePasswordEmptyUsername), errors.Is(err, user2.ErrChangePasswordEmptyNew):
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		case errors.Is(err, user2.ErrChangePasswordInvalidCurrent):
+			return nil, status.Error(codes.PermissionDenied, err.Error())
+		case strings.Contains(strings.ToLower(err.Error()), "not found"):
+			return nil, status.Errorf(codes.NotFound, "change password: %v", err)
+		default:
+			return nil, status.Errorf(codes.Internal, "change password: %v", err)
+		}
+	}
+
+	return &user.ChangePasswordResponse{
+		Code:    uint32(codes.OK),
+		Message: codes.OK.String(),
 	}, nil
 }

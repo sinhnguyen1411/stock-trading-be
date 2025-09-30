@@ -41,11 +41,18 @@ func StartServerAction(cmdCLI *cli.Context) error {
 
 func StartHTTPServer(cfg *config.Config) error {
 	if cfg.Env == "local" {
-		bs, err := json.Marshal(cfg)
+		shadow := *cfg
+		shadow.Auth.AccessTokenSecret = "***"
+		bs, err := json.Marshal(shadow)
 		if err != nil {
 			return fmt.Errorf("failed to marshal config: %w", err)
 		}
 		slog.Info("SERVER START CONFIG", "config", string(bs))
+	}
+
+	tokenManager, err := buildAccessTokenManager(cfg.Auth)
+	if err != nil {
+		return fmt.Errorf("failed to init token manager: %w", err)
 	}
 
 	stop := make(chan os.Signal, 1)
@@ -71,13 +78,13 @@ func StartHTTPServer(cfg *config.Config) error {
 	}
 
 	// new application
-	grpcServices, err := NewGrpcServices(*cfg, infra, adapters)
+	grpcServices, err := NewGrpcServices(*cfg, tokenManager, infra, adapters)
 	if err != nil {
 		return fmt.Errorf("failed to new grpc services: %w", err)
 	}
 
 	// start server
-	grpcStop, cgrpcerr := grpcadapter.StartServer(cfg.GRPC, grpcServices...)
+	grpcStop, cgrpcerr := grpcadapter.StartServer(cfg.GRPC, tokenManager, grpcServices...)
 	go func() {
 		for gerr := range cgrpcerr {
 			cerr <- fmt.Errorf("grpc server error: %w", gerr)

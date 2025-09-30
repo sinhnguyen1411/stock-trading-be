@@ -116,7 +116,7 @@ func (r MysqlUserRepository) GetLoginInfo(ctx context.Context, userName string) 
 	if birthday.Valid {
 		u.Birthday = birthday.Time
 	}
-	u.Gender = gender == "male"
+	u.Gender = strings.ToLower(gender) == "male"
 	return login, u, nil
 }
 
@@ -140,9 +140,12 @@ func (r MysqlUserRepository) InsertRegisterInfo(ctx context.Context, user useren
 
 // DeleteUser removes a user by username from MySQL repository.
 func (r MysqlUserRepository) DeleteUser(ctx context.Context, userName string) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM users WHERE username = ?", userName)
+	res, err := r.db.ExecContext(ctx, "DELETE FROM users WHERE username = ?", userName)
 	if err != nil {
 		return fmt.Errorf("delete user failed: %w", err)
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return fmt.Errorf("user not found")
 	}
 	return nil
 }
@@ -196,4 +199,54 @@ func (r MysqlUserRepository) GetUser(ctx context.Context, userName string) (user
 	u.Gender = strings.ToLower(gender) == "male"
 
 	return u, nil
+}
+
+// UpdateUser updates profile data for the given username.
+func (r MysqlUserRepository) UpdateUser(ctx context.Context, userName string, updated userentity.User) error {
+	gender := "female"
+	if updated.Gender {
+		gender = "male"
+	}
+	updatedAt := updated.UpdatedAt
+	if updatedAt.IsZero() {
+		updatedAt = time.Now().UTC()
+	}
+
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE users
+         SET name = ?, cmnd = ?, birthday = ?, gender = ?, permanent_address = ?, phone_number = ?, email = ?, updated_at = ?
+         WHERE username = ?`,
+		updated.Name,
+		updated.DocumentID,
+		updated.Birthday,
+		gender,
+		updated.PermanentAddress,
+		updated.PhoneNumber,
+		updated.Email,
+		updatedAt,
+		userName,
+	)
+	if err != nil {
+		var me *mysql.MySQLError
+		if errors.As(err, &me) && me.Number == 1062 {
+			return fmt.Errorf("username or email already exists")
+		}
+		return fmt.Errorf("update user failed: %w", err)
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return fmt.Errorf("user not found")
+	}
+	return nil
+}
+
+// UpdatePassword replaces the stored password hash for the given username.
+func (r MysqlUserRepository) UpdatePassword(ctx context.Context, userName, hashedPassword string) error {
+	res, err := r.db.ExecContext(ctx, "UPDATE users SET password_hash = ? WHERE username = ?", hashedPassword, userName)
+	if err != nil {
+		return fmt.Errorf("update password failed: %w", err)
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return fmt.Errorf("user not found")
+	}
+	return nil
 }

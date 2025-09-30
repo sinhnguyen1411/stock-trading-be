@@ -86,11 +86,83 @@ paths:
           type: string
       tags:
         - UserService
+    patch:
+      operationId: UserService_Update
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/user_serviceUpdateUserResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: username
+          in: path
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/UserServiceUpdateBody'
+      tags:
+        - UserService
+  /api/v1/user/{username}/password:
+    post:
+      operationId: UserService_ChangePassword
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/user_serviceChangePasswordResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: username
+          in: path
+          required: true
+          type: string
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/UserServiceChangePasswordBody'
+      tags:
+        - UserService
 definitions:
   LoginResponseData:
     type: object
     properties:
       token:
+        type: string
+  UserServiceChangePasswordBody:
+    type: object
+    properties:
+      oldPassword:
+        type: string
+      newPassword:
+        type: string
+  UserServiceUpdateBody:
+    type: object
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      cmnd:
+        type: string
+      birthday:
+        type: string
+        format: int64
+      gender:
+        type: boolean
+      permanentAddress:
+        type: string
+      phoneNumber:
         type: string
   protobufAny:
     type: object
@@ -226,6 +298,14 @@ definitions:
         items:
           type: object
           $ref: '#/definitions/protobufAny'
+  user_serviceChangePasswordResponse:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int64
+      message:
+        type: string
   user_serviceDeleteResponse:
     type: object
     properties:
@@ -284,6 +364,14 @@ definitions:
       phoneNumber:
         type: string
   user_serviceRegisterResponse:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int64
+      message:
+        type: string
+  user_serviceUpdateUserResponse:
     type: object
     properties:
       code:

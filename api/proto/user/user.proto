@@ -1,4 +1,4 @@
-﻿syntax = "proto3";
+syntax = "proto3";
 
 package stock_trading.user_service;
 option go_package = "github.com/sinhnguyen1411/stock-trading-be";
@@ -35,13 +35,27 @@ service UserService {
       get: "/api/v1/user/{username}"
     };
   }
+
+  rpc Update(UpdateUserRequest) returns (UpdateUserResponse) {
+    option (google.api.http) = {
+      patch: "/api/v1/user/{username}"
+      body: "*"
+    };
+  }
+
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/user/{username}/password"
+      body: "*"
+    };
+  }
 }
 
 message RegisterRequest {
   string username = 1 [(validate.rules).string = {min_len: 6, max_len: 16}];
   string password = 2 [(validate.rules).string = {min_len: 6, max_len: 16}];
-  string email = 3 [(validate.rules).string = {min_len: 6, max_len: 16}];
-  string name = 4 [(validate.rules).string = {min_len: 6, max_len: 16}];
+  string email = 3 [(validate.rules).string = {min_len: 6, max_len: 64}];
+  string name = 4 [(validate.rules).string = {min_len: 3, max_len: 64}];
   string cmnd = 5 [(validate.rules).string = {min_len: 6, max_len: 16}];
   int64 birthday = 6;
   bool gender = 7;
@@ -101,4 +115,31 @@ message UserProfile {
   string phone_number = 9;
   int64 created_at = 10;
   int64 updated_at = 11;
+}
+
+message UpdateUserRequest {
+  string username = 1 [(validate.rules).string = {min_len: 6, max_len: 16}];
+  string email = 2 [(validate.rules).string = {min_len: 6, max_len: 64}];
+  string name = 3 [(validate.rules).string = {min_len: 3, max_len: 64}];
+  string cmnd = 4 [(validate.rules).string = {min_len: 6, max_len: 16}];
+  int64 birthday = 5;
+  bool gender = 6;
+  string permanent_address = 7;
+  string phone_number = 8 [(validate.rules).string = {min_len: 9, max_len: 13}];
+}
+
+message UpdateUserResponse {
+  uint32 code = 1;
+  string message = 2;
+}
+
+message ChangePasswordRequest {
+  string username = 1 [(validate.rules).string = {min_len: 6, max_len: 16}];
+  string old_password = 2 [(validate.rules).string = {min_len: 6, max_len: 16}];
+  string new_password = 3 [(validate.rules).string = {min_len: 6, max_len: 16}];
+}
+
+message ChangePasswordResponse {
+  uint32 code = 1;
+  string message = 2;
 }

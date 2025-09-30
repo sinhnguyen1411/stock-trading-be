@@ -21,4 +21,10 @@ type UserRepository interface {
 
 	// GetUser retrieves a user by username.
 	GetUser(ctx context.Context, userName string) (user.User, error)
+
+	// UpdateUser updates user profile details for the given username.
+	UpdateUser(ctx context.Context, userName string, updated user.User) error
+
+	// UpdatePassword replaces the hashed password for the given username.
+	UpdatePassword(ctx context.Context, userName, hashedPassword string) error
 }
