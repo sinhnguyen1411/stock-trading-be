@@ -26,7 +26,6 @@
 |   \-- server/
 |       +-- config/
 |       |   +-- config.go
-|       |   +-- docker_compose.yaml
 |       |   \-- local.yaml
 |       +-- dependencies.go
 |       +-- grpc_server.go
@@ -71,7 +70,6 @@
 +-- README.md
 +-- buf.gen.yaml
 +-- buf.work.yaml
-+-- docker-compose.yaml
 +-- go.mod
 +-- go.sum
 \-- main.go
@@ -105,17 +103,24 @@ All user endpoints are defined in the protobuf service `UserService` and exposed
 - `Logout` revokes the provided refresh token without issuing new tokens.
 
 ## How to Run
-1. Start MySQL
-   ```bash
-   docker-compose up -d
-   ```
+1. Start MySQL locally (no Docker)
+   - Install MySQL 5.7+ (or 8.0).
+   - Create database (using MySQL Workbench or CLI):
+     ```sql
+     CREATE DATABASE IF NOT EXISTS stock CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+     ```
+   - Initialize tables (optional if you prefer migrations):
+     ```bash
+     # Using root with password
+     mysql -u root -p"Ngdms1107#" stock < tmp_init.sql
+     ```
    Default MySQL connection configuration:
    - host: `127.0.0.1`
    - port: `3306`
-   - user: `stock_user`
-   - password: `ps123456`
+   - user: `root`
+   - password: `Ngdms1107#`
    - database: `stock`
-   The initialization script is located at `internal/adapters/database/init_database.sql`.
+   You can tweak these in `cmd/server/config/local.yaml`.
 
 2. Run unit tests (in-memory adapters cover the service layer):
    ```bash
@@ -126,8 +131,16 @@ All user endpoints are defined in the protobuf service `UserService` and exposed
    ```bash
    go run main.go server --config ./cmd/server/config/local.yaml
    ```
-   - gRPC server: `localhost:9090`
-   - HTTP gateway (REST): `localhost:8080`
+   - gRPC server: `localhost:19090`
+   - HTTP gateway (REST): `localhost:18080`
+
+## Postman Collection
+- Import `postman/StockTradingBackend.postman_collection.json`.
+- `base_url` defaults to `http://127.0.0.1:18080` (update if you change `cmd/server/config/local.yaml`).
+- `Register User` pre-populates `username`, `password`, and `email` collection variables.
+- `Login User` saves `access_token` & `refresh_token` for downstream calls.
+- `Refresh Token` gửi kèm header `Authorization: Bearer {{access_token}}` (đã cấu hình sẵn trong collection) và trả về bộ token mới; các request sau như `Logout` sẽ dùng refresh token mới này.
+- Execute requests top-down to run the end-to-end happy path; rerun `Register User` to get a fresh user.
 
 ## SQL Connection
 The `ConnectDB` function initializes a MySQL connection based on the above configuration and uses `database/sql` with the `go-sql-driver/mysql` driver. All user queries populate the exported `Username` field that the gRPC layer returns to clients.

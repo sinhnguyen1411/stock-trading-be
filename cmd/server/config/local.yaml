@@ -2,16 +2,23 @@ env: local
 
 grpc:
   host: 0.0.0.0
-  port: 9090
+  port: 19090
 
 http:
   host: 0.0.0.0
-  port: 8080
+  port: 18080
+
+db:
+  host: localhost
+  port: 3306
+  user: root
+  password: "Ngdms1107#"
+  name: stock
 
 auth:
-  access_token_secret: "local-dev-secret-change-me"
+  access_token_secret: "local-dev-secret-change-me-0123456789abcd"
   access_token_ttl_minutes: 15
-  refresh_token_secret: "local-refresh-secret-change-me"
+  refresh_token_secret: "local-refresh-secret-change-me-0123456789abcd"
   refresh_token_ttl_minutes: 4320
   issuer: "stock-trading-be"
   audience: "stock-trading-clients"
