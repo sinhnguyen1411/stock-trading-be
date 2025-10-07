@@ -4,22 +4,16 @@ import (
 	"context"
 	"testing"
 
-	"github.com/sinhnguyen1411/stock-trading-be/internal/adapters/database"
-	userentity "github.com/sinhnguyen1411/stock-trading-be/internal/entities/user"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func TestUserChangePasswordUseCase(t *testing.T) {
-	repo := database.NewInMemoryUserRepository()
+	repo := newTestRepo()
 	ctx := context.Background()
 
-	hashed, err := bcrypt.GenerateFromPassword([]byte("oldpass"), bcrypt.DefaultCost)
+	_, err := seedUserWithToken(t, repo, "bob123", "bob@example.com", "oldpass", "token-change", false)
 	require.NoError(t, err)
-
-	userModel := userentity.User{Username: "bob123", Name: "Bob", Email: "bob@example.com"}
-	login := userentity.LoginMethodPassword{UserName: "bob123", Password: string(hashed)}
-	require.NoError(t, repo.InsertRegisterInfo(ctx, userModel, login))
 
 	uc := NewUserChangePasswordUseCase(repo)
 	err = uc.ChangePassword(ctx, "bob123", "oldpass", "newpass")
@@ -31,12 +25,11 @@ func TestUserChangePasswordUseCase(t *testing.T) {
 }
 
 func TestUserChangePasswordUseCase_InvalidOldPassword(t *testing.T) {
-	repo := database.NewInMemoryUserRepository()
+	repo := newTestRepo()
 	ctx := context.Background()
 
-	hashed, err := bcrypt.GenerateFromPassword([]byte("oldpass"), bcrypt.DefaultCost)
+	_, err := seedUserWithToken(t, repo, "bob123", "bob@example.com", "oldpass", "token-change", false)
 	require.NoError(t, err)
-	require.NoError(t, repo.InsertRegisterInfo(ctx, userentity.User{Username: "bob123", Name: "Bob", Email: "bob@example.com"}, userentity.LoginMethodPassword{UserName: "bob123", Password: string(hashed)}))
 
 	uc := NewUserChangePasswordUseCase(repo)
 	err = uc.ChangePassword(ctx, "bob123", "wrong", "newpass")

@@ -7,6 +7,7 @@ import (
 
 	"github.com/sinhnguyen1411/stock-trading-be/internal/adapters/database"
 	userentity "github.com/sinhnguyen1411/stock-trading-be/internal/entities/user"
+	"github.com/sinhnguyen1411/stock-trading-be/internal/ports"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,6 +16,7 @@ func TestUserUpdateUseCase_UpdateProfile(t *testing.T) {
 	ctx := context.Background()
 
 	original := userentity.User{
+		Username:         "alice123",
 		Name:             "Alice",
 		Email:            "alice@example.com",
 		DocumentID:       "CMND123",
@@ -23,11 +25,23 @@ func TestUserUpdateUseCase_UpdateProfile(t *testing.T) {
 		PermanentAddress: "HN",
 		PhoneNumber:      "0123456789",
 	}
-	login := userentity.LoginMethodPassword{UserName: "alice123", Password: "hashed"}
-	require.NoError(t, repo.InsertRegisterInfo(ctx, original, login))
+	_, err := repo.CreateUserWithVerification(ctx, ports.CreateUserWithVerificationParams{
+		User:  original,
+		Login: userentity.LoginMethodPassword{UserName: "alice123", Password: "hashed"},
+		Token: userentity.VerificationToken{Token: "token-update", Purpose: userentity.VerificationPurposeRegister, ExpiresAt: time.Now().Add(24 * time.Hour), CreatedAt: time.Now()},
+		OutboxEvent: userentity.OutboxEvent{
+			AggregateType: "user",
+			EventType:     "user.verification.register",
+			Payload:       []byte("{}"),
+			Status:        userentity.OutboxEventStatusPending,
+			CreatedAt:     time.Now(),
+			UpdatedAt:     time.Now(),
+		},
+	})
+	require.NoError(t, err)
 
 	uc := NewUserUpdateUseCase(repo)
-	err := uc.UpdateProfile(ctx, "alice123", RequestUpdate{
+	err = uc.UpdateProfile(ctx, "alice123", RequestUpdate{
 		Email:            "alice+new@example.com",
 		Name:             "Alice Updated",
 		Cmnd:             "CMND999",

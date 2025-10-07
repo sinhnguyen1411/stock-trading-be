@@ -6,10 +6,11 @@ import (
 	"time"
 
 	userentity "github.com/sinhnguyen1411/stock-trading-be/internal/entities/user"
+	"github.com/sinhnguyen1411/stock-trading-be/internal/ports"
 )
 
 // TestGetLoginInfoReturnsStoredBirthday verifies that the birthday
-// stored via InsertRegisterInfo is returned unchanged by GetLoginInfo.
+// stored when creating a user remains unchanged when fetched for login.
 func TestGetLoginInfoReturnsStoredBirthday(t *testing.T) {
 	repo := NewInMemoryUserRepository()
 	ctx := context.Background()
@@ -29,8 +30,26 @@ func TestGetLoginInfoReturnsStoredBirthday(t *testing.T) {
 		Password: "hashed",
 	}
 
-	if err := repo.InsertRegisterInfo(ctx, user, login); err != nil {
-		t.Fatalf("InsertRegisterInfo failed: %v", err)
+	_, err := repo.CreateUserWithVerification(ctx, ports.CreateUserWithVerificationParams{
+		User:  user,
+		Login: login,
+		Token: userentity.VerificationToken{
+			Token:     "test-token",
+			Purpose:   userentity.VerificationPurposeRegister,
+			ExpiresAt: time.Now().Add(24 * time.Hour),
+			CreatedAt: time.Now(),
+		},
+		OutboxEvent: userentity.OutboxEvent{
+			AggregateType: "user",
+			EventType:     "user.verification.register",
+			Payload:       []byte("{}"),
+			Status:        userentity.OutboxEventStatusPending,
+			CreatedAt:     time.Now(),
+			UpdatedAt:     time.Now(),
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateUserWithVerification failed: %v", err)
 	}
 
 	_, got, err := repo.GetLoginInfo(ctx, login.UserName)

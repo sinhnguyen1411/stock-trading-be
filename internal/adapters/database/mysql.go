@@ -85,15 +85,362 @@ func (r MysqlUserRepository) CheckUserNameAndEmailIsExist(ctx context.Context, u
 	return fmt.Errorf("username or email already exists")
 }
 
+func genderString(isMale bool) string {
+	if isMale {
+		return "male"
+	}
+	return "female"
+}
+
+func parseGender(gender string) bool {
+	return strings.ToLower(gender) == "male"
+}
+
+// CreateUserWithVerification insert a new user together with verification metadata and outbox event.
+func (r MysqlUserRepository) CreateUserWithVerification(ctx context.Context, params ports.CreateUserWithVerificationParams) (userentity.User, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return userentity.User{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	gender := genderString(params.User.Gender)
+	res, err := tx.ExecContext(ctx,
+		`INSERT INTO users (name, cmnd, birthday, gender, permanent_address, phone_number, username, password_hash, email, is_verified)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+		params.User.Name,
+		params.User.DocumentID,
+		params.User.Birthday,
+		gender,
+		params.User.PermanentAddress,
+		params.User.PhoneNumber,
+		params.Login.UserName,
+		params.Login.Password,
+		params.User.Email,
+	)
+	if err != nil {
+		var me *mysql.MySQLError
+		if errors.As(err, &me) && me.Number == 1062 {
+			err = fmt.Errorf("username or email already exists")
+		} else {
+			err = fmt.Errorf("insert user: %w", err)
+		}
+		return userentity.User{}, err
+	}
+
+	userID, err := res.LastInsertId()
+	if err != nil {
+		return userentity.User{}, fmt.Errorf("last insert id: %w", err)
+	}
+
+	purpose := params.Token.Purpose
+	if purpose == "" {
+		purpose = userentity.VerificationPurposeRegister
+	}
+
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO user_verification_tokens (user_id, token, purpose, expires_at)
+         VALUES (?, ?, ?, ?)`,
+		userID,
+		params.Token.Token,
+		string(purpose),
+		params.Token.ExpiresAt,
+	)
+	if err != nil {
+		return userentity.User{}, fmt.Errorf("insert verification token: %w", err)
+	}
+
+	status := params.OutboxEvent.Status
+	if status == "" {
+		status = userentity.OutboxEventStatusPending
+	}
+	aggregateType := params.OutboxEvent.AggregateType
+	if aggregateType == "" {
+		aggregateType = "user"
+	}
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO user_outbox_events (aggregate_id, aggregate_type, event_type, payload, status)
+         VALUES (?, ?, ?, ?, ?)`,
+		userID,
+		aggregateType,
+		params.OutboxEvent.EventType,
+		params.OutboxEvent.Payload,
+		string(status),
+	)
+	if err != nil {
+		return userentity.User{}, fmt.Errorf("insert outbox event: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return userentity.User{}, fmt.Errorf("commit tx: %w", err)
+	}
+
+	created := params.User
+	created.Id = userID
+	created.Username = params.Login.UserName
+	created.Verified = false
+	created.VerifiedAt = time.Time{}
+	return created, nil
+}
+
+// RotateVerificationToken replaces any active token and inserts a fresh one alongside an outbox entry.
+func (r MysqlUserRepository) RotateVerificationToken(ctx context.Context, params ports.RotateVerificationTokenParams) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	timestamp := params.Token.CreatedAt
+	if timestamp.IsZero() {
+		timestamp = time.Now().UTC()
+	}
+
+	_, err = tx.ExecContext(ctx,
+		`UPDATE user_verification_tokens
+         SET consumed_at = ?
+         WHERE user_id = ? AND consumed_at IS NULL`,
+		timestamp,
+		params.UserID,
+	)
+	if err != nil {
+		return fmt.Errorf("expire old tokens: %w", err)
+	}
+
+	purpose := params.Token.Purpose
+	if purpose == "" {
+		purpose = userentity.VerificationPurposeResend
+	}
+
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO user_verification_tokens (user_id, token, purpose, expires_at)
+         VALUES (?, ?, ?, ?)`,
+		params.UserID,
+		params.Token.Token,
+		string(purpose),
+		params.Token.ExpiresAt,
+	)
+	if err != nil {
+		return fmt.Errorf("insert new token: %w", err)
+	}
+
+	status := params.OutboxEvent.Status
+	if status == "" {
+		status = userentity.OutboxEventStatusPending
+	}
+	aggregateType := params.OutboxEvent.AggregateType
+	if aggregateType == "" {
+		aggregateType = "user"
+	}
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO user_outbox_events (aggregate_id, aggregate_type, event_type, payload, status)
+         VALUES (?, ?, ?, ?, ?)`,
+		params.UserID,
+		aggregateType,
+		params.OutboxEvent.EventType,
+		params.OutboxEvent.Payload,
+		string(status),
+	)
+	if err != nil {
+		return fmt.Errorf("insert outbox event: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
+	}
+	return nil
+}
+
+// FindVerificationToken retrieves a token and its associated user by token string.
+func (r MysqlUserRepository) FindVerificationToken(ctx context.Context, token string) (userentity.VerificationToken, userentity.User, error) {
+	var (
+		vt         userentity.VerificationToken
+		u          userentity.User
+		purpose    string
+		consumedAt sql.NullTime
+		birthday   sql.NullTime
+		gender     string
+		verifiedAt sql.NullTime
+		createdAt  sql.NullTime
+		updatedAt  sql.NullTime
+	)
+
+	err := r.db.QueryRowContext(ctx,
+		`SELECT t.id, t.user_id, t.token, t.purpose, t.expires_at, t.consumed_at, t.created_at, t.updated_at,
+                u.id, u.username, u.name, u.cmnd, u.birthday, u.gender,
+                u.permanent_address, u.phone_number, u.email, u.is_verified,
+                u.verified_at, u.created_at, u.updated_at
+         FROM user_verification_tokens t
+         JOIN users u ON u.id = t.user_id
+         WHERE t.token = ?
+         ORDER BY t.id DESC
+         LIMIT 1`,
+		token,
+	).Scan(
+		&vt.ID,
+		&vt.UserID,
+		&vt.Token,
+		&purpose,
+		&vt.ExpiresAt,
+		&consumedAt,
+		&vt.CreatedAt,
+		&vt.UpdatedAt,
+		&u.Id,
+		&u.Username,
+		&u.Name,
+		&u.DocumentID,
+		&birthday,
+		&gender,
+		&u.PermanentAddress,
+		&u.PhoneNumber,
+		&u.Email,
+		&u.Verified,
+		&verifiedAt,
+		&createdAt,
+		&updatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return vt, u, fmt.Errorf("verification token not found")
+		}
+		return vt, u, fmt.Errorf("query verification token: %w", err)
+	}
+
+	vt.Purpose = userentity.VerificationPurpose(purpose)
+	if consumedAt.Valid {
+		vt.ConsumedAt = &consumedAt.Time
+	}
+	if birthday.Valid {
+		u.Birthday = birthday.Time
+	}
+	u.Gender = parseGender(gender)
+	if verifiedAt.Valid {
+		u.VerifiedAt = verifiedAt.Time
+	}
+	if createdAt.Valid {
+		u.CreatedAt = createdAt.Time
+	}
+	if updatedAt.Valid {
+		u.UpdatedAt = updatedAt.Time
+	}
+
+	return vt, u, nil
+}
+
+// VerifyUserWithToken consumes the token and marks the user as verified atomically.
+func (r MysqlUserRepository) VerifyUserWithToken(ctx context.Context, tokenID int64, userID int64, verifiedAt time.Time) (userentity.User, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return userentity.User{}, fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	res, err := tx.ExecContext(ctx,
+		`UPDATE user_verification_tokens SET consumed_at = ? WHERE id = ? AND consumed_at IS NULL`,
+		verifiedAt,
+		tokenID,
+	)
+	if err != nil {
+		return userentity.User{}, fmt.Errorf("consume token: %w", err)
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return userentity.User{}, fmt.Errorf("verification token already used or not found")
+	}
+
+	res, err = tx.ExecContext(ctx,
+		`UPDATE users SET is_verified = 1, verified_at = ?, updated_at = ? WHERE id = ?`,
+		verifiedAt,
+		verifiedAt,
+		userID,
+	)
+	if err != nil {
+		return userentity.User{}, fmt.Errorf("update user verified flag: %w", err)
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return userentity.User{}, fmt.Errorf("user not found")
+	}
+
+	var (
+		u              userentity.User
+		birthday       sql.NullTime
+		gender         string
+		verifiedAtNull sql.NullTime
+		createdAt      sql.NullTime
+		updatedAt      sql.NullTime
+	)
+
+	err = tx.QueryRowContext(ctx,
+		`SELECT id, username, name, cmnd, birthday, gender,
+                permanent_address, phone_number, email, is_verified,
+                verified_at, created_at, updated_at
+         FROM users WHERE id = ?`,
+		userID,
+	).Scan(
+		&u.Id,
+		&u.Username,
+		&u.Name,
+		&u.DocumentID,
+		&birthday,
+		&gender,
+		&u.PermanentAddress,
+		&u.PhoneNumber,
+		&u.Email,
+		&u.Verified,
+		&verifiedAtNull,
+		&createdAt,
+		&updatedAt,
+	)
+	if err != nil {
+		return userentity.User{}, fmt.Errorf("load verified user: %w", err)
+	}
+
+	if birthday.Valid {
+		u.Birthday = birthday.Time
+	}
+	u.Gender = parseGender(gender)
+	if verifiedAtNull.Valid {
+		u.VerifiedAt = verifiedAtNull.Time
+	}
+	if createdAt.Valid {
+		u.CreatedAt = createdAt.Time
+	}
+	if updatedAt.Valid {
+		u.UpdatedAt = updatedAt.Time
+	}
+
+	if err = tx.Commit(); err != nil {
+		return userentity.User{}, fmt.Errorf("commit tx: %w", err)
+	}
+
+	return u, nil
+}
+
 // GetLoginInfo returns login and user information for given username
 func (r MysqlUserRepository) GetLoginInfo(ctx context.Context, userName string) (userentity.LoginMethodPassword, userentity.User, error) {
 	var login userentity.LoginMethodPassword
 	var u userentity.User
 	var gender string
 	var birthday sql.NullTime
+	var verifiedAt sql.NullTime
+	var createdAt sql.NullTime
+	var updatedAt sql.NullTime
 	err := r.db.QueryRowContext(
 		ctx,
-		"SELECT id, username, password_hash, name, cmnd, birthday, gender, permanent_address, phone_number, email FROM users WHERE username = ?",
+		`SELECT id, username, password_hash, name, cmnd, birthday, gender, permanent_address, phone_number, email,
+                is_verified, verified_at, created_at, updated_at
+         FROM users WHERE username = ?`,
 		userName,
 	).Scan(
 		&u.Id,
@@ -106,6 +453,10 @@ func (r MysqlUserRepository) GetLoginInfo(ctx context.Context, userName string) 
 		&u.PermanentAddress,
 		&u.PhoneNumber,
 		&u.Email,
+		&u.Verified,
+		&verifiedAt,
+		&createdAt,
+		&updatedAt,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -116,26 +467,17 @@ func (r MysqlUserRepository) GetLoginInfo(ctx context.Context, userName string) 
 	if birthday.Valid {
 		u.Birthday = birthday.Time
 	}
-	u.Gender = strings.ToLower(gender) == "male"
+	if verifiedAt.Valid {
+		u.VerifiedAt = verifiedAt.Time
+	}
+	if createdAt.Valid {
+		u.CreatedAt = createdAt.Time
+	}
+	if updatedAt.Valid {
+		u.UpdatedAt = updatedAt.Time
+	}
+	u.Gender = parseGender(gender)
 	return login, u, nil
-}
-
-// InsertRegisterInfo insert into repository and then generate userID
-func (r MysqlUserRepository) InsertRegisterInfo(ctx context.Context, user userentity.User, loginMethod userentity.LoginMethodPassword) error {
-	gender := "female"
-	if user.Gender {
-		gender = "male"
-	}
-	_, err := r.db.ExecContext(ctx, "INSERT INTO users (name, cmnd, birthday, gender, permanent_address, phone_number, username, password_hash, email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		user.Name, user.DocumentID, user.Birthday, gender, user.PermanentAddress, user.PhoneNumber, loginMethod.UserName, loginMethod.Password, user.Email)
-	if err != nil {
-		var me *mysql.MySQLError
-		if errors.As(err, &me) && me.Number == 1062 {
-			return fmt.Errorf("username or email already exists")
-		}
-		return fmt.Errorf("insert data got error: %w", err)
-	}
-	return nil
 }
 
 // DeleteUser removes a user by username from MySQL repository.
@@ -150,26 +492,19 @@ func (r MysqlUserRepository) DeleteUser(ctx context.Context, userName string) er
 	return nil
 }
 
-// GetUser retrieves a user profile by username.
-func (r MysqlUserRepository) GetUser(ctx context.Context, userName string) (userentity.User, error) {
+func (r MysqlUserRepository) scanUserByRow(row *sql.Row) (userentity.User, error) {
 	var (
-		u         userentity.User
-		username  string
-		gender    string
-		birthday  sql.NullTime
-		createdAt sql.NullTime
-		updatedAt sql.NullTime
+		u          userentity.User
+		birthday   sql.NullTime
+		gender     string
+		verifiedAt sql.NullTime
+		createdAt  sql.NullTime
+		updatedAt  sql.NullTime
 	)
 
-	err := r.db.QueryRowContext(
-		ctx,
-		`SELECT id, username, name, cmnd, birthday, gender,
-                permanent_address, phone_number, email, created_at, updated_at
-         FROM users WHERE username = ?`,
-		userName,
-	).Scan(
+	err := row.Scan(
 		&u.Id,
-		&username,
+		&u.Username,
 		&u.Name,
 		&u.DocumentID,
 		&birthday,
@@ -177,18 +512,20 @@ func (r MysqlUserRepository) GetUser(ctx context.Context, userName string) (user
 		&u.PermanentAddress,
 		&u.PhoneNumber,
 		&u.Email,
+		&u.Verified,
+		&verifiedAt,
 		&createdAt,
 		&updatedAt,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return u, fmt.Errorf("user not found")
-		}
-		return u, fmt.Errorf("query user failed: %w", err)
+		return userentity.User{}, err
 	}
-
 	if birthday.Valid {
 		u.Birthday = birthday.Time
+	}
+	u.Gender = parseGender(gender)
+	if verifiedAt.Valid {
+		u.VerifiedAt = verifiedAt.Time
 	}
 	if createdAt.Valid {
 		u.CreatedAt = createdAt.Time
@@ -196,9 +533,47 @@ func (r MysqlUserRepository) GetUser(ctx context.Context, userName string) (user
 	if updatedAt.Valid {
 		u.UpdatedAt = updatedAt.Time
 	}
-	u.Gender = strings.ToLower(gender) == "male"
-
 	return u, nil
+}
+
+// GetUser retrieves a user profile by username.
+func (r MysqlUserRepository) GetUser(ctx context.Context, userName string) (userentity.User, error) {
+	row := r.db.QueryRowContext(
+		ctx,
+		`SELECT id, username, name, cmnd, birthday, gender,
+                permanent_address, phone_number, email, is_verified,
+                verified_at, created_at, updated_at
+         FROM users WHERE username = ?`,
+		userName,
+	)
+	user, err := r.scanUserByRow(row)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return userentity.User{}, fmt.Errorf("user not found")
+		}
+		return userentity.User{}, fmt.Errorf("query user failed: %w", err)
+	}
+	return user, nil
+}
+
+// GetUserByEmail retrieves a user by email.
+func (r MysqlUserRepository) GetUserByEmail(ctx context.Context, email string) (userentity.User, error) {
+	row := r.db.QueryRowContext(
+		ctx,
+		`SELECT id, username, name, cmnd, birthday, gender,
+                permanent_address, phone_number, email, is_verified,
+                verified_at, created_at, updated_at
+         FROM users WHERE email = ?`,
+		email,
+	)
+	user, err := r.scanUserByRow(row)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return userentity.User{}, fmt.Errorf("user not found")
+		}
+		return userentity.User{}, fmt.Errorf("query user by email failed: %w", err)
+	}
+	return user, nil
 }
 
 // ListUsers returns users with pagination support and total count.
@@ -217,7 +592,8 @@ func (r MysqlUserRepository) ListUsers(ctx context.Context, params ports.ListUse
 
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, username, name, cmnd, birthday, gender,
-                permanent_address, phone_number, email, created_at, updated_at
+                permanent_address, phone_number, email, is_verified,
+                verified_at, created_at, updated_at
          FROM users
          ORDER BY id ASC
          LIMIT ? OFFSET ?`,
@@ -231,17 +607,17 @@ func (r MysqlUserRepository) ListUsers(ctx context.Context, params ports.ListUse
 	users := make([]userentity.User, 0, limit)
 	for rows.Next() {
 		var (
-			u         userentity.User
-			username  string
-			gender    string
-			birthday  sql.NullTime
-			createdAt sql.NullTime
-			updatedAt sql.NullTime
+			u          userentity.User
+			birthday   sql.NullTime
+			gender     string
+			verifiedAt sql.NullTime
+			createdAt  sql.NullTime
+			updatedAt  sql.NullTime
 		)
 
 		if err := rows.Scan(
 			&u.Id,
-			&username,
+			&u.Username,
 			&u.Name,
 			&u.DocumentID,
 			&birthday,
@@ -249,6 +625,8 @@ func (r MysqlUserRepository) ListUsers(ctx context.Context, params ports.ListUse
 			&u.PermanentAddress,
 			&u.PhoneNumber,
 			&u.Email,
+			&u.Verified,
+			&verifiedAt,
 			&createdAt,
 			&updatedAt,
 		); err != nil {
@@ -258,13 +636,16 @@ func (r MysqlUserRepository) ListUsers(ctx context.Context, params ports.ListUse
 		if birthday.Valid {
 			u.Birthday = birthday.Time
 		}
+		if verifiedAt.Valid {
+			u.VerifiedAt = verifiedAt.Time
+		}
 		if createdAt.Valid {
 			u.CreatedAt = createdAt.Time
 		}
 		if updatedAt.Valid {
 			u.UpdatedAt = updatedAt.Time
 		}
-		u.Gender = strings.ToLower(gender) == "male"
+		u.Gender = parseGender(gender)
 
 		users = append(users, u)
 	}
@@ -282,10 +663,7 @@ func (r MysqlUserRepository) ListUsers(ctx context.Context, params ports.ListUse
 
 // UpdateUser updates profile data for the given username.
 func (r MysqlUserRepository) UpdateUser(ctx context.Context, userName string, updated userentity.User) error {
-	gender := "female"
-	if updated.Gender {
-		gender = "male"
-	}
+	gender := genderString(updated.Gender)
 	updatedAt := updated.UpdatedAt
 	if updatedAt.IsZero() {
 		updatedAt = time.Now().UTC()
