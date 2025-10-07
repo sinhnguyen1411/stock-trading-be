@@ -2,20 +2,27 @@ package user
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"time"
+
+	"github.com/google/uuid"
 	userentity "github.com/sinhnguyen1411/stock-trading-be/internal/entities/user"
 	"github.com/sinhnguyen1411/stock-trading-be/internal/ports"
 	"golang.org/x/crypto/bcrypt"
-	"time"
 )
 
 type UserRegisterUseCase struct {
-	repository ports.UserRepository
+	repository     ports.UserRepository
+	tokenTTL       time.Duration
+	tokenGenerator func() string
 }
 
 func NewUserRegisterUseCase(repo ports.UserRepository) UserRegisterUseCase {
 	return UserRegisterUseCase{
-		repository: repo,
+		repository:     repo,
+		tokenTTL:       24 * time.Hour,
+		tokenGenerator: func() string { return uuid.NewString() },
 	}
 }
 
@@ -32,7 +39,6 @@ type RequestRegister struct {
 }
 
 func (u UserRegisterUseCase) RegisterAccount(ctx context.Context, req RequestRegister) error {
-	//check request model
 	if req.Username == "" {
 		return fmt.Errorf("user name is empty")
 	}
@@ -42,33 +48,65 @@ func (u UserRegisterUseCase) RegisterAccount(ctx context.Context, req RequestReg
 	if req.Email == "" {
 		return fmt.Errorf("email is empty")
 	}
-	// check username in database
+
 	if err := u.repository.CheckUserNameAndEmailIsExist(ctx, req.Username, req.Email); err != nil {
 		return fmt.Errorf("check username and email is existed got error: %w", err)
 	}
-	// hashpassword
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("hash password got error: %w", err)
 	}
 
-	usermodel := userentity.User{
-		Id:               0, //insert into database will create userID
-		Username:         req.Username,
-		Name:             req.Name,
-		Email:            req.Email,
-		DocumentID:       req.Cmnd,
-		Birthday:         time.Unix(req.Birthday, 0),
-		Gender:           req.Gender,
-		PermanentAddress: req.PermanentAddress,
-		PhoneNumber:      req.PhoneNumber,
+	var birthday time.Time
+	if req.Birthday != 0 {
+		birthday = time.Unix(req.Birthday, 0).UTC()
 	}
-	loginMethod := userentity.LoginMethodPassword{
-		UserName: req.Username,
-		Password: string(hashedPassword),
+
+	now := time.Now().UTC()
+	tokenValue := u.tokenGenerator()
+	tokenExpires := now.Add(u.tokenTTL)
+
+	payloadBytes, err := json.Marshal(verificationEmailPayload{
+		Email:   req.Email,
+		Token:   tokenValue,
+		Purpose: string(userentity.VerificationPurposeRegister),
+	})
+	if err != nil {
+		return fmt.Errorf("marshal verification payload: %w", err)
 	}
-	// insert into database
-	if err := u.repository.InsertRegisterInfo(ctx, usermodel, loginMethod); err != nil {
+
+	_, err = u.repository.CreateUserWithVerification(ctx, ports.CreateUserWithVerificationParams{
+		User: userentity.User{
+			Username:         req.Username,
+			Name:             req.Name,
+			Email:            req.Email,
+			DocumentID:       req.Cmnd,
+			Birthday:         birthday,
+			Gender:           req.Gender,
+			PermanentAddress: req.PermanentAddress,
+			PhoneNumber:      req.PhoneNumber,
+		},
+		Login: userentity.LoginMethodPassword{
+			UserName: req.Username,
+			Password: string(hashedPassword),
+		},
+		Token: userentity.VerificationToken{
+			Token:     tokenValue,
+			Purpose:   userentity.VerificationPurposeRegister,
+			ExpiresAt: tokenExpires,
+			CreatedAt: now,
+		},
+		OutboxEvent: userentity.OutboxEvent{
+			AggregateType: "user",
+			EventType:     "user.verification.register",
+			Payload:       payloadBytes,
+			Status:        userentity.OutboxEventStatusPending,
+			CreatedAt:     now,
+			UpdatedAt:     now,
+		},
+	})
+	if err != nil {
 		return fmt.Errorf("insert database got error: %w", err)
 	}
 	return nil

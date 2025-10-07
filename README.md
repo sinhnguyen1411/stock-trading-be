@@ -1,24 +1,20 @@
-# Stock Trading Backend
+﻿# Stock Trading Backend
 
 ## Project Structure (Detailed)
 
-# net/http & clean/Hexagonal Architecture
 ```
 .
 +-- api/
 |   +-- docs/
-|   |   +-- user/
+|   |   \-- user/
 |   |       \-- user.swagger.yaml
 |   +-- grpc/
-|   |   +-- user/
-|   |       +-- delete.pb.go
+|   |   \-- user/
 |   |       +-- user.pb.go
 |   |       +-- user.pb.gw.go
 |   |       +-- user.pb.validate.go
 |   |       \-- user_grpc.pb.go
 |   \-- proto/
-|       +-- buf.lock
-|       +-- buf.yaml
 |       \-- user/
 |           \-- user.proto
 +-- cmd/
@@ -42,10 +38,8 @@
 |   |       +-- grpc_server/
 |   |       |   +-- auth.go
 |   |       |   +-- grpc_server.go
-|   |       |   +-- validate.go
+|   |       |   +-- service.go
 |   |       |   \-- users/
-|   |       |       +-- delete.go
-|   |       |       +-- login.go
 |   |       |       \-- service.go
 |   |       \-- http_gateway/
 |   |           +-- http_service.go
@@ -63,42 +57,50 @@
 |           +-- get.go
 |           +-- list.go
 |           +-- login.go
+|           +-- refresh.go
 |           +-- register.go
+|           +-- resend_verification.go
 |           +-- update.go
-+-- .gitattributes
-+-- .gitignore
-+-- README.md
-+-- buf.gen.yaml
-+-- buf.work.yaml
+|           \-- verify.go
 +-- go.mod
 +-- go.sum
 \-- main.go
 ```
 
-HTTP Gateway using `net/http` forwards REST requests to the internal gRPC services.
+The HTTP gateway (net/http) forwards REST requests to the internal gRPC services that implement the use cases above.
 
 ## User API Surface
-All user endpoints are defined in the protobuf service `UserService` and exposed through the HTTP Gateway. Pagination defaults to page `1` with `20` items per page (capped at `100`).
+All REST endpoints are defined via the protobuf `UserService` and exposed through the HTTP gateway. Pagination defaults to page `1` with `20` items per page (capped at `100`).
 
 | Method | Path | Description |
-| ------ | ----- | ----------- |
-| PUT    | `/api/v1/user/register` | Register a user |
-| POST   | `/api/v1/user/login`    | User login (returns access & refresh tokens) |
-| POST   | `/api/v1/token/refresh` | Rotate tokens using a refresh token |
-| POST   | `/api/v1/user/logout`   | Revoke a refresh token |
+| ------ | ---- | ----------- |
+| POST   | `/users` | Register a user, persist an email-verification token, and emit an outbox event |
+| POST   | `/users/verify/resend` | Rotate the verification token and emit a resend outbox event |
+| GET    | `/users/verify` | Verify a user account using the `token` query string |
+| POST   | `/api/v1/user/login` | User login (returns access & refresh tokens) |
+| POST   | `/api/v1/token/refresh` | Rotate tokens using an existing refresh token |
+| POST   | `/api/v1/user/logout` | Revoke a refresh token |
 | GET    | `/api/v1/user/{username}` | Get a user profile |
 | PATCH  | `/api/v1/user/{username}` | Update a user profile |
 | POST   | `/api/v1/user/{username}/password` | Change a user password |
 | DELETE | `/api/v1/user/{username}` | Delete a user |
 | GET    | `/api/v1/users?page=&page_size=` | List users with pagination |
 
+### Email Verification Flow
+1. `POST /users` creates the user, stores a verification token, and writes a `user.verification.register` outbox event that Debezium/Kafka can pick up.
+2. Email services consume the outbox event and send the verification email (payload includes email + token).
+3. `POST /users/verify/resend` rotates the token, consumes previous ones, and emits a `user.verification.resend` event.
+4. `GET /users/verify?token=...` validates the token (checks expiry/usage), marks the user as verified, and consumes the token. Login requests from unverified users are rejected.
+
 ### List Users Parameters
 - `page`: optional, starts at 1 (default `1`).
 - `page_size`: optional, defaults to `20`, maximum `100`.
 - Response body contains `data` (array of user profiles), `total`, `page`, and `page_size`.
 
+Each profile now includes `verified` and `verified_at` timestamps.
+
 ### Token Lifecycle
-- `Login` responds with both an access token (short TTL) and refresh token (long TTL).
+- `Login` responds with both an access token (short TTL) and refresh token (long TTL). Accounts must be verified first.
 - `RefreshToken` rotates both tokens and revokes the supplied refresh token.
 - `Logout` revokes the provided refresh token without issuing new tokens.
 
@@ -111,7 +113,6 @@ All user endpoints are defined in the protobuf service `UserService` and exposed
      ```
    - Initialize tables (optional if you prefer migrations):
      ```bash
-     # Using root with password
      mysql -u root -p"Ngdms1107#" stock < tmp_init.sql
      ```
    Default MySQL connection configuration:
@@ -137,17 +138,15 @@ All user endpoints are defined in the protobuf service `UserService` and exposed
 ## Postman Collection
 - Import `postman/StockTradingBackend.postman_collection.json`.
 - `base_url` defaults to `http://127.0.0.1:18080` (update if you change `cmd/server/config/local.yaml`).
-- `Register User` pre-populates `username`, `password`, and `email` collection variables.
+- `Register User` now stores `verification_token` produced by the API; follow with `Verify User` or `Resend Verification` before logging in.
 - `Login User` saves `access_token` & `refresh_token` for downstream calls.
-- `Refresh Token` gửi kèm header `Authorization: Bearer {{access_token}}` (đã cấu hình sẵn trong collection) và trả về bộ token mới; các request sau như `Logout` sẽ dùng refresh token mới này.
-- Execute requests top-down to run the end-to-end happy path; rerun `Register User` to get a fresh user.
+- Execute requests in order to exercise the end-to-end verification flow.
 
 ## SQL Connection
-The `ConnectDB` function initializes a MySQL connection based on the above configuration and uses `database/sql` with the `go-sql-driver/mysql` driver. All user queries populate the exported `Username` field that the gRPC layer returns to clients.
+The `ConnectDB` function initializes a MySQL connection using `database/sql` and the `go-sql-driver/mysql` driver. Verification and outbox tables (`user_verification_tokens`, `user_outbox_events`) are created alongside the existing `users` table.
 
 ## Authentication
-- Access tokens are signed JWTs issued by the login endpoint. Configure `auth.access_token_secret` and `auth.access_token_ttl_minutes` in `cmd/server/config/local.yaml` (or `AUTH__ACCESS_TOKEN_SECRET` env var).
+- Access tokens are signed JWTs issued by the login endpoint. Configure `auth.access_token_secret` and `auth.access_token_ttl_minutes` in `cmd/server/config/local.yaml` (or `AUTH__ACCESS_TOKEN_SECRET` environment variable).
 - Refresh tokens are independent JWTs with longer TTL (`auth.refresh_token_secret`, `auth.refresh_token_ttl_minutes`). They are rotated on refresh and revoked on logout within the in-memory blacklist.
 - The gRPC gateway forwards `Authorization: Bearer <token>` headers to backend services. All non-public RPCs enforce token verification.
 - Rotate secrets regularly in production and keep them outside version control (for example, via environment variables or a secret manager).
-

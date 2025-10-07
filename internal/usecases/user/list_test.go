@@ -2,14 +2,12 @@ package user
 
 import (
 	"context"
+	"fmt"
 	"testing"
-
-	db "github.com/sinhnguyen1411/stock-trading-be/internal/adapters/database"
-	userentity "github.com/sinhnguyen1411/stock-trading-be/internal/entities/user"
 )
 
 func TestUserListUseCase_ListDefaults(t *testing.T) {
-	repo := db.NewInMemoryUserRepository()
+	repo := newTestRepo()
 	uc := NewUserListUseCase(repo)
 
 	result, err := uc.List(context.Background(), 0, 0)
@@ -29,9 +27,9 @@ func TestUserListUseCase_ListDefaults(t *testing.T) {
 }
 
 func TestUserListUseCase_ListPagination(t *testing.T) {
-	repo := db.NewInMemoryUserRepository()
+	repo := newTestRepo()
 
-	seedUsers := []struct {
+	seeds := []struct {
 		Username string
 		Email    string
 	}{
@@ -41,16 +39,9 @@ func TestUserListUseCase_ListPagination(t *testing.T) {
 		{"danny004", "danny@example.com"},
 	}
 
-	for i, seed := range seedUsers {
-		err := repo.InsertRegisterInfo(context.Background(), userentity.User{
-			Name:   seed.Username,
-			Email:  seed.Email,
-			Gender: true,
-		}, userentity.LoginMethodPassword{
-			UserName: seed.Username,
-			Password: "hashed",
-		})
-		if err != nil {
+	for i, seed := range seeds {
+		token := fmt.Sprintf("token-%d", i)
+		if _, err := seedUserWithToken(t, repo, seed.Username, seed.Email, "password", token, false); err != nil {
 			t.Fatalf("seed %d failed: %v", i, err)
 		}
 	}
@@ -68,8 +59,8 @@ func TestUserListUseCase_ListPagination(t *testing.T) {
 	if result.PageSize != 2 {
 		t.Fatalf("expected page size 2, got %d", result.PageSize)
 	}
-	if result.Total != int64(len(seedUsers)) {
-		t.Fatalf("expected total %d, got %d", len(seedUsers), result.Total)
+	if result.Total != int64(len(seeds)) {
+		t.Fatalf("expected total %d, got %d", len(seeds), result.Total)
 	}
 	if len(result.Users) != 2 {
 		t.Fatalf("expected 2 users, got %d", len(result.Users))
@@ -80,7 +71,7 @@ func TestUserListUseCase_ListPagination(t *testing.T) {
 }
 
 func TestUserListUseCase_ListCapsPageSize(t *testing.T) {
-	repo := db.NewInMemoryUserRepository()
+	repo := newTestRepo()
 	uc := NewUserListUseCase(repo)
 
 	result, err := uc.List(context.Background(), 1, maxListPageSize+200)

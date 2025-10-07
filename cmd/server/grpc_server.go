@@ -8,7 +8,7 @@ import (
 	grpcadapter "github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/grpc_server"
 	"github.com/sinhnguyen1411/stock-trading-be/internal/adapters/server/grpc_server/users"
 	"github.com/sinhnguyen1411/stock-trading-be/internal/security"
-	use_case "github.com/sinhnguyen1411/stock-trading-be/internal/usecases/user"
+	usecase "github.com/sinhnguyen1411/stock-trading-be/internal/usecases/user"
 )
 
 func NewGrpcServices(cfg config.Config, accessTokens security.AccessTokenManager, refreshTokens security.RefreshTokenManager, infra *InfrastructureDependencies, adapters *Adapters) ([]grpcadapter.Service, error) {
@@ -17,25 +17,37 @@ func NewGrpcServices(cfg config.Config, accessTokens security.AccessTokenManager
 		return nil, fmt.Errorf("failed to new user service: %w", err)
 	}
 
-	return []grpcadapter.Service{
-		userService,
-	}, nil
+	return []grpcadapter.Service{userService}, nil
 }
 
 func NewUserService(_ config.Config, _ *InfrastructureDependencies, adapters *Adapters, accessTokens security.AccessTokenManager, refreshTokens security.RefreshTokenManager) (*users.UserService, error) {
 	repo := adapters.UserRepository
 
-	userUseCase := use_case.NewUserRegisterUseCase(repo)
-	loginUseCase := use_case.NewUserLoginUseCase(repo, accessTokens, refreshTokens)
-	refreshUseCase := use_case.NewUserTokenRefreshUseCase(accessTokens, refreshTokens)
-	logoutUseCase := use_case.NewUserLogoutUseCase(refreshTokens)
-	deleteUseCase := use_case.NewUserDeleteUseCase(repo)
-	getUseCase := use_case.NewUserGetUseCase(repo)
-	listUseCase := use_case.NewUserListUseCase(repo)
-	updateUseCase := use_case.NewUserUpdateUseCase(repo)
-	changePasswordUseCase := use_case.NewUserChangePasswordUseCase(repo)
+	registerUseCase := usecase.NewUserRegisterUseCase(repo)
+	resendUseCase := usecase.NewUserVerificationResendUseCase(repo)
+	verifyUseCase := usecase.NewUserVerifyUseCase(repo)
+	loginUseCase := usecase.NewUserLoginUseCase(repo, accessTokens, refreshTokens)
+	refreshUseCase := usecase.NewUserTokenRefreshUseCase(accessTokens, refreshTokens)
+	logoutUseCase := usecase.NewUserLogoutUseCase(refreshTokens)
+	deleteUseCase := usecase.NewUserDeleteUseCase(repo)
+	getUseCase := usecase.NewUserGetUseCase(repo)
+	listUseCase := usecase.NewUserListUseCase(repo)
+	updateUseCase := usecase.NewUserUpdateUseCase(repo)
+	changePasswordUseCase := usecase.NewUserChangePasswordUseCase(repo)
 
-	userService := users.NewUserService(userUseCase, loginUseCase, refreshUseCase, logoutUseCase, deleteUseCase, getUseCase, listUseCase, updateUseCase, changePasswordUseCase)
+	userService := users.NewUserService(
+		registerUseCase,
+		resendUseCase,
+		verifyUseCase,
+		loginUseCase,
+		refreshUseCase,
+		logoutUseCase,
+		deleteUseCase,
+		getUseCase,
+		listUseCase,
+		updateUseCase,
+		changePasswordUseCase,
+	)
 	return userService, nil
 }
 

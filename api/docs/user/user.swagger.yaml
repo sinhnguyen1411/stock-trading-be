@@ -69,26 +69,6 @@ paths:
             $ref: '#/definitions/user_serviceLogoutRequest'
       tags:
         - UserService
-  /api/v1/user/register:
-    put:
-      operationId: UserService_Register
-      responses:
-        "200":
-          description: A successful response.
-          schema:
-            $ref: '#/definitions/user_serviceRegisterResponse'
-        default:
-          description: An unexpected error response.
-          schema:
-            $ref: '#/definitions/rpcStatus'
-      parameters:
-        - name: body
-          in: body
-          required: true
-          schema:
-            $ref: '#/definitions/user_serviceRegisterRequest'
-      tags:
-        - UserService
   /api/v1/user/{username}:
     get:
       operationId: UserService_Get
@@ -196,6 +176,65 @@ paths:
           required: false
           type: integer
           format: int64
+      tags:
+        - UserService
+  /users:
+    post:
+      operationId: UserService_Register
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/user_serviceRegisterResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/user_serviceRegisterRequest'
+      tags:
+        - UserService
+  /users/verify:
+    get:
+      operationId: UserService_VerifyUser
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/user_serviceVerifyUserResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: token
+          in: query
+          required: false
+          type: string
+      tags:
+        - UserService
+  /users/verify/resend:
+    post:
+      operationId: UserService_ResendVerification
+      responses:
+        "200":
+          description: A successful response.
+          schema:
+            $ref: '#/definitions/user_serviceResendVerificationResponse'
+        default:
+          description: An unexpected error response.
+          schema:
+            $ref: '#/definitions/rpcStatus'
+      parameters:
+        - name: body
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/user_serviceResendVerificationRequest'
       tags:
         - UserService
 definitions:
@@ -494,6 +533,19 @@ definitions:
         format: int64
       message:
         type: string
+  user_serviceResendVerificationRequest:
+    type: object
+    properties:
+      email:
+        type: string
+  user_serviceResendVerificationResponse:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int64
+      message:
+        type: string
   user_serviceUpdateUserResponse:
     type: object
     properties:
@@ -531,3 +583,18 @@ definitions:
       updatedAt:
         type: string
         format: int64
+      verified:
+        type: boolean
+      verifiedAt:
+        type: string
+        format: int64
+  user_serviceVerifyUserResponse:
+    type: object
+    properties:
+      code:
+        type: integer
+        format: int64
+      message:
+        type: string
+      data:
+        $ref: '#/definitions/user_serviceUserProfile'

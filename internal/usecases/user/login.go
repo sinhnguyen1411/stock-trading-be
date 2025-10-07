@@ -27,6 +27,9 @@ func (u UserLoginUseCase) Login(ctx context.Context, username, password string) 
 	if err != nil {
 		return "", time.Time{}, "", time.Time{}, userentity.User{}, fmt.Errorf("get login info: %w", err)
 	}
+	if !userInfo.Verified {
+		return "", time.Time{}, "", time.Time{}, userentity.User{}, fmt.Errorf("user is not verified")
+	}
 	if err := bcrypt.CompareHashAndPassword([]byte(info.Password), []byte(password)); err != nil {
 		return "", time.Time{}, "", time.Time{}, userentity.User{}, fmt.Errorf("invalid credentials")
 	}

@@ -18,8 +18,10 @@ import (
 func AuthUnaryServerInterceptor(tokenValidator security.AccessTokenManager) grpc.UnaryServerInterceptor {
 	// Public methods that do not require authentication
 	public := map[string]struct{}{
-		userpb.UserService_Login_FullMethodName:    {},
-		userpb.UserService_Register_FullMethodName: {},
+		userpb.UserService_Login_FullMethodName:              {},
+		userpb.UserService_Register_FullMethodName:           {},
+		userpb.UserService_ResendVerification_FullMethodName: {},
+		userpb.UserService_VerifyUser_FullMethodName:         {},
 	}
 
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
