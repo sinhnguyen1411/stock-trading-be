@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -405,4 +406,50 @@ func (r *InMemoryUserRepository) UpdatePassword(ctx context.Context, userName, h
 	r.logins[userName] = login
 	_ = ctx
 	return nil
+}
+
+// UpdateOutboxStatus updates the status of an in-memory outbox event.
+func (r *InMemoryUserRepository) UpdateOutboxStatus(ctx context.Context, eventID int64, status string) error {
+	status = strings.ToLower(strings.TrimSpace(status))
+	switch status {
+	case "pending", "processed", "failed":
+	default:
+		return fmt.Errorf("invalid outbox status: %s", status)
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for i, evt := range r.outboxEvents {
+		if evt.ID == eventID {
+			evt.Status = userentity.OutboxEventStatus(status)
+			if status == "processed" {
+				now := time.Now().UTC()
+				evt.ProcessedAt = &now
+				evt.UpdatedAt = now
+			} else {
+				evt.ProcessedAt = nil
+				evt.UpdatedAt = time.Now().UTC()
+			}
+			r.outboxEvents[i] = evt
+			return nil
+		}
+	}
+	return fmt.Errorf("outbox event not found")
+}
+
+// GetLatestVerificationToken returns the latest verification token for the user.
+func (r *InMemoryUserRepository) GetLatestVerificationToken(ctx context.Context, userID int64) (userentity.VerificationToken, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	tokenID, ok := r.tokenByUser[userID]
+	if !ok {
+		return userentity.VerificationToken{}, fmt.Errorf("verification token not found")
+	}
+	token, exists := r.tokensByID[tokenID]
+	if !exists {
+		return userentity.VerificationToken{}, fmt.Errorf("verification token not found")
+	}
+	return token, nil
 }

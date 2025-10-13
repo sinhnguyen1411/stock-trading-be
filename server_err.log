@@ -1,0 +1,10 @@
+2025/10/13 10:46:55 INFO SERVER START CONFIG config="{\"env\":\"local\",\"grpc\":{\"host\":\"0.0.0.0\",\"port\":19090},\"http\":{\"host\":\"0.0.0.0\",\"port\":18080},\"db\":{\"host\":\"localhost\",\"port\":3306,\"user\":\"root\",\"password\":\"Ngdms1107#\",\"name\":\"stock\"},\"auth\":{\"access_token_secret\":\"***\",\"access_token_ttl_minutes\":15,\"refresh_token_secret\":\"***\",\"refresh_token_ttl_minutes\":4320,\"issuer\":\"stock-trading-be\",\"audience\":\"stock-trading-clients\"},\"notification\":{\"kafka\":{\"brokers\":[\"localhost:29092\"],\"topic\":\"stock.stock.user_outbox_events\",\"group_id\":\"email-service\"},\"email\":{\"provider\":\"smtp\",\"smtp\":{\"host\":\"localhost\",\"port\":1025,\"username\":\"\",\"password\":\"\",\"from\":\"no-reply@example.com\",\"use_tls\":false}}}}"
+2025/10/13 10:46:55 INFO MYSQL CONNECTED
+2025/10/13 10:46:55 INFO HTTP GATEWAY RUNNING addr=0.0.0.0:18080
+2025/10/13 10:46:55 INFO SERVER STARTED
+2025/10/13 10:46:55 INFO EMAIL NOTIFIER STARTED
+2025/10/13 10:46:55 INFO GRPC SERVER RUNNING addr=[::]:19090
+2025/10/13 10:58:09 INFO SERVER STOPPING
+2025/10/13 10:58:09 INFO EMAIL NOTIFIER STOPPED
+2025/10/13 10:58:11 INFO HTTP GATEWAY SHUTDOWN START
+2025/10/13 10:58:11 INFO HTTP GATEWAY STOPPING

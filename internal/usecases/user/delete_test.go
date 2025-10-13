@@ -42,6 +42,10 @@ func (r *deleteRepo) GetLoginInfo(ctx context.Context, userName string) (userent
 	return userentity.LoginMethodPassword{}, userentity.User{}, fmt.Errorf("not implemented")
 }
 
+func (r *deleteRepo) GetLatestVerificationToken(ctx context.Context, userID int64) (userentity.VerificationToken, error) {
+	return userentity.VerificationToken{}, fmt.Errorf("not implemented")
+}
+
 func (r *deleteRepo) DeleteUser(ctx context.Context, userName string) error {
 	r.deleted = userName
 	return r.err

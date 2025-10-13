@@ -40,6 +40,9 @@ type UserRepository interface {
 	// FindVerificationToken returns the token record and owning user for a given token string.
 	FindVerificationToken(ctx context.Context, token string) (user.VerificationToken, user.User, error)
 
+	// GetLatestVerificationToken returns the most recent verification token for the given user.
+	GetLatestVerificationToken(ctx context.Context, userID int64) (user.VerificationToken, error)
+
 	// VerifyUserWithToken marks the token as consumed and the user as verified.
 	VerifyUserWithToken(ctx context.Context, tokenID int64, userID int64, verifiedAt time.Time) (user.User, error)
 

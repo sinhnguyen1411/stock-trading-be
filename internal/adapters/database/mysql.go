@@ -335,6 +335,44 @@ func (r MysqlUserRepository) FindVerificationToken(ctx context.Context, token st
 	return vt, u, nil
 }
 
+// GetLatestVerificationToken returns the most recently created token for the user.
+func (r MysqlUserRepository) GetLatestVerificationToken(ctx context.Context, userID int64) (userentity.VerificationToken, error) {
+	var (
+		vt         userentity.VerificationToken
+		purpose    string
+		consumedAt sql.NullTime
+	)
+
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, user_id, token, purpose, expires_at, consumed_at, created_at, updated_at
+         FROM user_verification_tokens
+         WHERE user_id = ?
+         ORDER BY id DESC
+         LIMIT 1`,
+		userID,
+	).Scan(
+		&vt.ID,
+		&vt.UserID,
+		&vt.Token,
+		&purpose,
+		&vt.ExpiresAt,
+		&consumedAt,
+		&vt.CreatedAt,
+		&vt.UpdatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return vt, fmt.Errorf("verification token not found")
+		}
+		return vt, fmt.Errorf("query latest verification token: %w", err)
+	}
+	vt.Purpose = userentity.VerificationPurpose(purpose)
+	if consumedAt.Valid {
+		vt.ConsumedAt = &consumedAt.Time
+	}
+	return vt, nil
+}
+
 // VerifyUserWithToken consumes the token and marks the user as verified atomically.
 func (r MysqlUserRepository) VerifyUserWithToken(ctx context.Context, tokenID int64, userID int64, verifiedAt time.Time) (userentity.User, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
@@ -704,6 +742,41 @@ func (r MysqlUserRepository) UpdatePassword(ctx context.Context, userName, hashe
 	}
 	if rows, _ := res.RowsAffected(); rows == 0 {
 		return fmt.Errorf("user not found")
+	}
+	return nil
+}
+
+// UpdateOutboxStatus updates the status (and processed_at when appropriate) of an outbox event.
+func (r MysqlUserRepository) UpdateOutboxStatus(ctx context.Context, eventID int64, status string) error {
+	status = strings.ToLower(strings.TrimSpace(status))
+	switch status {
+	case "pending", "processed", "failed":
+	default:
+		return fmt.Errorf("invalid outbox status: %s", status)
+	}
+
+	now := time.Now().UTC()
+	var processedAt interface{}
+	if status == "processed" {
+		processedAt = now
+	} else {
+		processedAt = nil
+	}
+
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE user_outbox_events
+         SET status = ?, processed_at = ?, updated_at = ?
+         WHERE id = ?`,
+		status,
+		processedAt,
+		now,
+		eventID,
+	)
+	if err != nil {
+		return fmt.Errorf("update outbox status failed: %w", err)
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return fmt.Errorf("outbox event not found")
 	}
 	return nil
 }

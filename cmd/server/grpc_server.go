@@ -20,12 +20,15 @@ func NewGrpcServices(cfg config.Config, accessTokens security.AccessTokenManager
 	return []grpcadapter.Service{userService}, nil
 }
 
-func NewUserService(_ config.Config, _ *InfrastructureDependencies, adapters *Adapters, accessTokens security.AccessTokenManager, refreshTokens security.RefreshTokenManager) (*users.UserService, error) {
-	repo := adapters.UserRepository
+func NewUserService(cfg config.Config, _ *InfrastructureDependencies, adapters *Adapters, accessTokens security.AccessTokenManager, refreshTokens security.RefreshTokenManager) (*users.UserService, error) {
+    repo := adapters.UserRepository
 
-	registerUseCase := usecase.NewUserRegisterUseCase(repo)
-	resendUseCase := usecase.NewUserVerificationResendUseCase(repo)
-	verifyUseCase := usecase.NewUserVerifyUseCase(repo)
+    vTTL := time.Duration(cfg.Verification.TokenTTLHours) * time.Hour
+    vCooldown := time.Duration(cfg.Verification.ResendCooldownSeconds) * time.Second
+
+    registerUseCase := usecase.NewUserRegisterUseCaseWithTTL(repo, vTTL)
+    resendUseCase := usecase.NewUserVerificationResendUseCaseWithConfig(repo, vTTL, vCooldown)
+    verifyUseCase := usecase.NewUserVerifyUseCase(repo)
 	loginUseCase := usecase.NewUserLoginUseCase(repo, accessTokens, refreshTokens)
 	refreshUseCase := usecase.NewUserTokenRefreshUseCase(accessTokens, refreshTokens)
 	logoutUseCase := usecase.NewUserLogoutUseCase(refreshTokens)

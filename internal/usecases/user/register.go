@@ -13,17 +13,29 @@ import (
 )
 
 type UserRegisterUseCase struct {
-	repository     ports.UserRepository
-	tokenTTL       time.Duration
-	tokenGenerator func() string
+    repository     ports.UserRepository
+    tokenTTL       time.Duration
+    tokenGenerator func() string
 }
 
 func NewUserRegisterUseCase(repo ports.UserRepository) UserRegisterUseCase {
-	return UserRegisterUseCase{
-		repository:     repo,
-		tokenTTL:       24 * time.Hour,
-		tokenGenerator: func() string { return uuid.NewString() },
-	}
+    return UserRegisterUseCase{
+        repository:     repo,
+        tokenTTL:       24 * time.Hour,
+        tokenGenerator: func() string { return uuid.NewString() },
+    }
+}
+
+// NewUserRegisterUseCaseWithTTL allows configuring the verification token TTL.
+func NewUserRegisterUseCaseWithTTL(repo ports.UserRepository, tokenTTL time.Duration) UserRegisterUseCase {
+    if tokenTTL <= 0 {
+        tokenTTL = 24 * time.Hour
+    }
+    return UserRegisterUseCase{
+        repository:     repo,
+        tokenTTL:       tokenTTL,
+        tokenGenerator: func() string { return uuid.NewString() },
+    }
 }
 
 type RequestRegister struct {
