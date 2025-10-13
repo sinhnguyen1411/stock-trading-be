@@ -29,7 +29,8 @@ func InitInfrastructure(cfg *config.Config) (*InfrastructureDependencies, error)
 // Adapters groups concrete implementations that satisfy the application's
 // ports. These can be backed by real infrastructure or in-memory fallbacks.
 type Adapters struct {
-	UserRepository ports.UserRepository
+	UserRepository   ports.UserRepository
+	OutboxRepository ports.OutboxRepository
 }
 
 // NewAdapters wires repositories based on available infrastructure
@@ -37,11 +38,16 @@ type Adapters struct {
 // implementation is used to keep the application functional in a degraded
 // mode.
 func NewAdapters(infra *InfrastructureDependencies) (*Adapters, error) {
-    var repo ports.UserRepository
-    if infra.DB != nil {
-        repo = database.NewMysqlUserRepository(infra.DB)
-    } else {
-        repo = database.NewInMemoryUserRepository()
-    }
-    return &Adapters{UserRepository: repo}, nil
+	if infra.DB != nil {
+		repo := database.NewMysqlUserRepository(infra.DB)
+		return &Adapters{
+			UserRepository:   repo,
+			OutboxRepository: repo,
+		}, nil
+	}
+	memRepo := database.NewInMemoryUserRepository()
+	return &Adapters{
+		UserRepository:   memRepo,
+		OutboxRepository: memRepo,
+	}, nil
 }

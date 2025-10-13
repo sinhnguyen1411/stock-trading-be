@@ -16,20 +16,39 @@ import (
 var (
 	ErrResendEmptyEmail      = errors.New("email is empty")
 	ErrResendAlreadyVerified = errors.New("user already verified")
+	ErrResendTooFrequent     = errors.New("too many resend requests, please try again later")
 )
 
 type UserVerificationResendUseCase struct {
-	repository     ports.UserRepository
-	tokenTTL       time.Duration
-	tokenGenerator func() string
+    repository     ports.UserRepository
+    tokenTTL       time.Duration
+    tokenGenerator func() string
+    cooldown       time.Duration
 }
 
 func NewUserVerificationResendUseCase(repo ports.UserRepository) UserVerificationResendUseCase {
-	return UserVerificationResendUseCase{
-		repository:     repo,
-		tokenTTL:       24 * time.Hour,
-		tokenGenerator: func() string { return uuid.NewString() },
-	}
+    return UserVerificationResendUseCase{
+        repository:     repo,
+        tokenTTL:       24 * time.Hour,
+        tokenGenerator: func() string { return uuid.NewString() },
+        cooldown:       time.Minute,
+    }
+}
+
+// NewUserVerificationResendUseCaseWithConfig allows configuring token TTL and resend cooldown.
+func NewUserVerificationResendUseCaseWithConfig(repo ports.UserRepository, tokenTTL time.Duration, cooldown time.Duration) UserVerificationResendUseCase {
+    if tokenTTL <= 0 {
+        tokenTTL = 24 * time.Hour
+    }
+    if cooldown < 0 {
+        cooldown = 0
+    }
+    return UserVerificationResendUseCase{
+        repository:     repo,
+        tokenTTL:       tokenTTL,
+        tokenGenerator: func() string { return uuid.NewString() },
+        cooldown:       cooldown,
+    }
 }
 
 type RequestResendVerification struct {
@@ -50,6 +69,15 @@ func (u UserVerificationResendUseCase) Resend(ctx context.Context, req RequestRe
 	}
 
 	now := time.Now().UTC()
+	latest, err := u.repository.GetLatestVerificationToken(ctx, user.Id)
+	if err != nil {
+		if !strings.Contains(strings.ToLower(err.Error()), "not found") {
+			return fmt.Errorf("get latest verification token: %w", err)
+		}
+	} else if u.cooldown > 0 && latest.Purpose == userentity.VerificationPurposeResend && latest.CreatedAt.Add(u.cooldown).After(now) {
+		return ErrResendTooFrequent
+	}
+
 	tokenValue := u.tokenGenerator()
 	tokenExpires := now.Add(u.tokenTTL)
 

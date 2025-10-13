@@ -105,6 +105,28 @@ Each profile now includes `verified` and `verified_at` timestamps.
 - `Logout` revokes the provided refresh token without issuing new tokens.
 
 ## How to Run
+### One-Click E2E (Full Diagram)
+- PowerShell (Windows):
+  ```powershell
+  ./scripts/oneclick_e2e.ps1
+  ```
+- Bash (Linux/macOS):
+  ```bash
+  bash ./scripts/oneclick_e2e.sh
+  ```
+This will: start infra (Kafka/ZK/Connect/Mailpit), initialize MySQL schema, register the Debezium connector, run the server, then execute a full end‑to‑end verification flow (Register → Resend → read email via Mailpit API → Verify via link → Login).
+
+0. One-command dev setup (infra + DB + connector)
+   - PowerShell (Windows):
+     ```powershell
+     ./scripts/dev_up.ps1
+     ```
+   - Bash (Linux/macOS):
+     ```bash
+     bash ./scripts/dev_up.sh
+     ```
+   This will: start Kafka/Zookeeper/Connect/Mailpit, initialize MySQL schema (expects local MySQL), and register the Debezium connector.
+
 1. Start MySQL locally (no Docker)
    - Install MySQL 5.7+ (or 8.0).
    - Create database (using MySQL Workbench or CLI):
@@ -135,12 +157,44 @@ Each profile now includes `verified` and `verified_at` timestamps.
    - gRPC server: `localhost:19090`
    - HTTP gateway (REST): `localhost:18080`
 
+4. Register Debezium connector (optional, for outbox → Kafka)
+   - PowerShell (Windows):
+     ```powershell
+     ./scripts/register_debezium_connector.ps1 -ConnectUrl http://localhost:8083 -ConfigPath connector-mysql-user-outbox.json
+     ```
+   - Bash (Linux/macOS):
+     ```bash
+     bash ./scripts/register_debezium_connector.sh http://localhost:8083 ./connector-mysql-user-outbox.json
+     ```
+   - Ensure Kafka Connect is running from `docker-compose.stack.yml` service `connect` on port `8083`.
+   - Note: The bash script requires `jq`.
+
+### E2E Testing Scripts
+- PowerShell
+  - `scripts/e2e_full_mailpit.ps1`: Full flow (Register → Resend → read Mailpit → Verify via link → Login).
+  - `scripts/e2e_verify_mailpit.ps1`: Register → read Mailpit → Verify → Login.
+  - `scripts/e2e_verify.ps1`: Register → query token from MySQL → Verify → Login.
+- Bash
+  - `scripts/e2e_full_mailpit.sh`: Full flow using curl + jq.
+
+Utilities
+- Start/Stop infra: `scripts/dev_up.ps1|.sh`, `scripts/dev_down.ps1|.sh`
+- DB init only: `scripts/init_db.ps1|.sh`
+- Debezium connector: `scripts/register_debezium_connector.ps1|.sh`
+
 ## Postman Collection
 - Import `postman/StockTradingBackend.postman_collection.json`.
 - `base_url` defaults to `http://127.0.0.1:18080` (update if you change `cmd/server/config/local.yaml`).
 - `Register User` now stores `verification_token` produced by the API; follow with `Verify User` or `Resend Verification` before logging in.
 - `Login User` saves `access_token` & `refresh_token` for downstream calls.
 - Execute requests in order to exercise the end-to-end verification flow.
+
+### Email Verification Configuration
+- Email body now includes a clickable verification link if `notification.email.verification_url_base` is set.
+- Configure verification settings in `cmd/server/config/local.yaml`:
+  - `notification.email.verification_url_base`: e.g. `http://127.0.0.1:18080/users/verify?token=`
+  - `verification.token_ttl_hours`: token lifetime (hours), default `24`.
+  - `verification.resend_cooldown_seconds`: minimum delay between resend requests, default `60`.
 
 ## SQL Connection
 The `ConnectDB` function initializes a MySQL connection using `database/sql` and the `go-sql-driver/mysql` driver. Verification and outbox tables (`user_verification_tokens`, `user_outbox_events`) are created alongside the existing `users` table.

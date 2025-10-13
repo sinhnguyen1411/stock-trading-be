@@ -1,4 +1,4 @@
-env: local
+﻿env: local
 
 grpc:
   host: 0.0.0.0
@@ -22,3 +22,24 @@ auth:
   refresh_token_ttl_minutes: 4320
   issuer: "stock-trading-be"
   audience: "stock-trading-clients"
+
+notification:
+  kafka:
+    brokers:
+      - localhost:29092
+    topic: stock.stock.user_outbox_events
+    group_id: email-service
+  email:
+    provider: smtp
+    smtp:
+      host: localhost
+      port: 1025
+      username: ""
+      password: ""
+      from: "no-reply@example.com"
+      use_tls: false
+    verification_url_base: "http://127.0.0.1:18080/users/verify?token="
+
+verification:
+  token_ttl_hours: 24           # TTL for verification tokens
+  resend_cooldown_seconds: 60   # Cooldown between resend requests

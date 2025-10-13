@@ -13,11 +13,13 @@ import (
 )
 
 type Config struct {
-	Env  string              `json:"env" mapstructure:"env"`
-	GRPC grpc_server.Config  `json:"grpc" mapstructure:"grpc"`
-	HTTP http_gateway.Config `json:"http" mapstructure:"http"`
-	DB   database.Config     `json:"db" mapstructure:"db"`
-	Auth AuthConfig          `json:"auth" mapstructure:"auth"`
+    Env          string              `json:"env" mapstructure:"env"`
+    GRPC         grpc_server.Config  `json:"grpc" mapstructure:"grpc"`
+    HTTP         http_gateway.Config `json:"http" mapstructure:"http"`
+    DB           database.Config     `json:"db" mapstructure:"db"`
+    Auth         AuthConfig          `json:"auth" mapstructure:"auth"`
+    Notification NotificationConfig  `json:"notification" mapstructure:"notification"`
+    Verification VerificationConfig  `json:"verification" mapstructure:"verification"`
 }
 
 type AuthConfig struct {
@@ -29,33 +31,90 @@ type AuthConfig struct {
 	Audience               string `json:"audience" mapstructure:"audience" yaml:"audience"`
 }
 
+type NotificationConfig struct {
+    Kafka KafkaConfig `json:"kafka" mapstructure:"kafka"`
+    Email EmailConfig `json:"email" mapstructure:"email"`
+}
+
+type KafkaConfig struct {
+	Brokers []string `json:"brokers" mapstructure:"brokers"`
+	Topic   string   `json:"topic" mapstructure:"topic"`
+	GroupID string   `json:"group_id" mapstructure:"group_id"`
+}
+
+type EmailConfig struct {
+    Provider string     `json:"provider" mapstructure:"provider"`
+    SMTP     SMTPConfig `json:"smtp" mapstructure:"smtp"`
+    // VerificationURLBase is the base URL used to compose the verification link.
+    // Example: http://127.0.0.1:18080/users/verify?token=
+    VerificationURLBase string `json:"verification_url_base" mapstructure:"verification_url_base" yaml:"verification_url_base"`
+}
+
+type SMTPConfig struct {
+    Host     string `json:"host" mapstructure:"host"`
+    Port     int    `json:"port" mapstructure:"port"`
+    Username string `json:"username" mapstructure:"username"`
+    Password string `json:"password" mapstructure:"password"`
+    From     string `json:"from" mapstructure:"from"`
+    UseTLS   bool   `json:"use_tls" mapstructure:"use_tls"`
+}
+
+// VerificationConfig groups the verification token TTL and resend cooldown settings.
+type VerificationConfig struct {
+    // TokenTTLHours is the time-to-live for verification tokens, in hours.
+    TokenTTLHours int `json:"token_ttl_hours" mapstructure:"token_ttl_hours" yaml:"token_ttl_hours"`
+    // ResendCooldownSeconds is the minimum delay between resend requests, in seconds.
+    ResendCooldownSeconds int `json:"resend_cooldown_seconds" mapstructure:"resend_cooldown_seconds" yaml:"resend_cooldown_seconds"`
+}
+
 func loadDefaultConfig() *Config {
-	return &Config{
-		Env: "local",
-		GRPC: grpc_server.Config{
-			Host: "0.0.0.0",
-			Port: 9090,
-		},
-		HTTP: http_gateway.Config{
-			Host: "0.0.0.0",
-			Port: 8080,
-		},
-		DB: database.Config{
-			Host:     "127.0.0.1",
-			Port:     3306,
-			User:     "stock_user",
-			Password: "ps123456",
-			Name:     "stock",
-		},
-		Auth: AuthConfig{
-			AccessTokenSecret:      "change-me-in-production-please",
-			AccessTokenTTLMinutes:  15,
-			RefreshTokenSecret:     "change-me-in-production-too",
-			RefreshTokenTTLMinutes: 60 * 24 * 3,
-			Issuer:                 "stock-trading-be",
-			Audience:               "stock-trading-clients",
-		},
-	}
+    return &Config{
+        Env: "local",
+        GRPC: grpc_server.Config{
+            Host: "0.0.0.0",
+            Port: 9090,
+        },
+        HTTP: http_gateway.Config{
+            Host: "0.0.0.0",
+            Port: 8080,
+        },
+        DB: database.Config{
+            Host:     "127.0.0.1",
+            Port:     3306,
+            User:     "stock_user",
+            Password: "ps123456",
+            Name:     "stock",
+        },
+        Auth: AuthConfig{
+            AccessTokenSecret:      "change-me-in-production-please",
+            AccessTokenTTLMinutes:  15,
+            RefreshTokenSecret:     "change-me-in-production-too",
+            RefreshTokenTTLMinutes: 60 * 24 * 3,
+            Issuer:                 "stock-trading-be",
+            Audience:               "stock-trading-clients",
+        },
+        Verification: VerificationConfig{
+            TokenTTLHours:          24,
+            ResendCooldownSeconds:  60,
+        },
+        Notification: NotificationConfig{
+            Kafka: KafkaConfig{
+                Brokers: []string{"localhost:29092"},
+                Topic:   "stock.stock.user_outbox_events",
+                GroupID: "email-service",
+            },
+            Email: EmailConfig{
+                Provider: "smtp",
+                SMTP: SMTPConfig{
+                    Host:   "localhost",
+                    Port:   1025,
+                    From:   "no-reply@example.com",
+                    UseTLS: false,
+                },
+                VerificationURLBase: "http://127.0.0.1:18080/users/verify?token=",
+            },
+        },
+    }
 }
 
 func LoadConfig(configPath string) (*Config, error) {
