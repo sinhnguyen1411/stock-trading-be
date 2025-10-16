@@ -37,7 +37,8 @@ function Find-VerifyLink([string]$content) {
 }
 
 Write-Host "Starting server in background (full diagram E2E)..."
-$job = Start-Job -ScriptBlock { param($cfg) go run main.go server --config $cfg } -ArgumentList $ConfigPath
+$repoRoot = (Get-Location).Path
+$job = Start-Job -ScriptBlock { param($cfg,$wd) Set-Location $wd; go run main.go server --config $cfg } -ArgumentList $ConfigPath,$repoRoot
 Start-Sleep -Seconds 2
 if (-not (Wait-Port -HostName '127.0.0.1' -Port 18080 -Seconds 60)) {
   try { Receive-Job -Id $job.Id -Keep | Select-Object -Last 50 } catch {}
@@ -140,4 +141,3 @@ Write-Host "Full diagram E2E (register→resend→verify→login) succeeded for 
 
 try { Stop-Job -Id $job.Id | Out-Null } catch {}
 Remove-Job -Id $job.Id -ErrorAction SilentlyContinue | Out-Null
-

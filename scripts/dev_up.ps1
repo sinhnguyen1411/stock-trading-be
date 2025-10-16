@@ -41,7 +41,7 @@ if ((Get-Date) -ge $deadline) {
 }
 
 Write-Host "Initializing MySQL schema..."
-& $PSScriptRoot\init_db.ps1 -DBHost $DBHost -Port $DBPort -User $DBUser -Password $DBPassword -Database $DBName
+& $PSScriptRoot\init_db.ps1 -DBHost $DBHost -Port $DBPort -User $DBUser -Password $DBPassword -Database $DBName -UseDockerClient:$true -Quiet:$true
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "Registering Debezium connector..."

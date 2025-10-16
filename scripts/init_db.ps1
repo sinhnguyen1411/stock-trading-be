@@ -4,7 +4,9 @@ param(
   [string]$User = "root",
   [string]$Password = "Ngdms1107#",
   [string]$Database = "stock",
-  [string]$SchemaPath = "internal/adapters/database/schema_verification.sql"
+  [string]$SchemaPath = "internal/adapters/database/schema_verification.sql",
+  [switch]$UseDockerClient = $false,
+  [switch]$Quiet = $false
 )
 
 function Require-Cli($name) {
@@ -44,6 +46,7 @@ function Normalize-HostForDocker($mysqlArgs) {
 }
 
 function Run-DockerMySQL($mysqlArgs, [string]$stdin) {
+  Require-Cli docker
   $norm = Normalize-HostForDocker $mysqlArgs
   $dockerArgs = @('run','--rm','-i','mysql:8','mysql') + $norm
   $display = $dockerArgs | ForEach-Object { if ($_ -like '--password=*') { '--password=****' } else { $_ } } | Out-String
@@ -66,17 +69,25 @@ if (!(Test-Path -Path $SchemaPath)) {
 Write-Host "Creating database '$Database' if not exists..."
 $createSQL = "CREATE DATABASE IF NOT EXISTS `$Database CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 $args = @("--host=$DBHost","--port=$Port","--user=$User","--password=$Password","-e", $createSQL)
-if (-not (Try-LocalMySQL $args $null)) {
-  Write-Warning "Local mysql failed; falling back to docker mysql client..."
+if ($UseDockerClient) {
   if (-not (Run-DockerMySQL $args $null)) { exit 1 }
+} else {
+  if (-not (Try-LocalMySQL $args $null)) {
+    if (-not $Quiet) { Write-Warning "Local mysql failed; falling back to docker mysql client..." }
+    if (-not (Run-DockerMySQL $args $null)) { exit 1 }
+  }
 }
 
 Write-Host "Applying schema from $SchemaPath..."
 $schema = Get-Content -Raw -Path $SchemaPath
 $args2 = @("--host=$DBHost","--port=$Port","--user=$User","--password=$Password", $Database)
-if (-not (Try-LocalMySQL $args2 $schema)) {
-  Write-Warning "Local mysql failed; falling back to docker mysql client..."
+if ($UseDockerClient) {
   if (-not (Run-DockerMySQL $args2 $schema)) { exit 1 }
+} else {
+  if (-not (Try-LocalMySQL $args2 $schema)) {
+    if (-not $Quiet) { Write-Warning "Local mysql failed; falling back to docker mysql client..." }
+    if (-not (Run-DockerMySQL $args2 $schema)) { exit 1 }
+  }
 }
 
 Write-Host "Database initialized."
