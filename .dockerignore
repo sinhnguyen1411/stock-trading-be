@@ -1,0 +1,30 @@
+# Exclude development and build artifacts from the Docker context
+.git
+.github
+.vscode
+bin
+docs
+postman
+scripts
+tmp
+
+# Local tooling & editor clutter
+*.log
+*.local
+*.tmp
+*.swp
+*.swo
+*.DS_Store
+
+# Host-specific artifacts
+docker-compose*.yml
+*.ps1
+*.sh
+
+# Go build cache
+*.out
+/server.log
+/server_err.log
+/server_out.log
+/server_run_err.log
+/server_run_out.log
