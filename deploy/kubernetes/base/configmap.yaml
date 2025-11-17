@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-config
+  labels:
+    app.kubernetes.io/name: user-service
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: stock-trading
+data:
+  config.yaml: |
+    env: production
+
+    grpc:
+      host: 0.0.0.0
+      port: 19090
+
+    http:
+      host: 0.0.0.0
+      port: 18080
+
+    db:
+      host: mysql.stock-trading.svc.cluster.local
+      port: 3306
+      user: stock_user
+      password: ""
+      name: stock
+
+    auth:
+      access_token_secret: ""
+      access_token_ttl_minutes: 15
+      refresh_token_secret: ""
+      refresh_token_ttl_minutes: 4320
+      issuer: stock-trading-be
+      audience: stock-trading-clients
+
+    notification:
+      kafka:
+        brokers:
+          - kafka.stock-trading.svc.cluster.local:9092
+        topic: stock.stock.user_outbox_events
+        group_id: email-service
+      email:
+        provider: smtp
+        smtp:
+          host: smtp.stock-trading.svc.cluster.local
+          port: 587
+          username: ""
+          password: ""
+          from: "no-reply@stock-trading.local"
+          use_tls: true
+        verification_url_base: "https://user.example.com/users/verify?token="
+
+    verification:
+      token_ttl_hours: 24
+      resend_cooldown_seconds: 60

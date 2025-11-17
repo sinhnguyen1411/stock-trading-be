@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  labels:
+    app.kubernetes.io/name: user-service
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: stock-trading
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: user-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: user-service
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/part-of: stock-trading
+      annotations:
+        kubectl.kubernetes.io/default-container: user-service
+    spec:
+      serviceAccountName: user-service
+      automountServiceAccountToken: false
+      securityContext:
+        fsGroup: 65532
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: user-service
+          image: ghcr.io/example/stock-trading/user-service:dev
+          imagePullPolicy: IfNotPresent
+          args:
+            - server
+            - --config
+            - /etc/stock-trading/config/config.yaml
+          env:
+            - name: DB__PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secrets
+                  key: db-password
+            - name: AUTH__ACCESS_TOKEN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secrets
+                  key: auth-access-token-secret
+            - name: AUTH__REFRESH_TOKEN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secrets
+                  key: auth-refresh-token-secret
+            - name: NOTIFICATION__EMAIL__SMTP__USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secrets
+                  key: smtp-username
+            - name: NOTIFICATION__EMAIL__SMTP__PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-secrets
+                  key: smtp-password
+          ports:
+            - name: http
+              containerPort: 18080
+            - name: grpc
+              containerPort: 19090
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            failureThreshold: 3
+          startupProbe:
+            tcpSocket:
+              port: http
+            failureThreshold: 18
+            periodSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /etc/stock-trading/config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: user-service-config
+            items:
+              - key: config.yaml
+                path: config.yaml
+        - name: tmp
+          emptyDir: {}
