@@ -1,0 +1,34 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-user-service-images
+  annotations:
+    policies.kyverno.io/title: Verify signed & attested images
+    policies.kyverno.io/category: DevSecOps
+    policies.kyverno.io/subject: ImageSigning,Provenance
+    policies.kyverno.io/description: >
+      Enforce that the user-service image is signed with Cosign and carries a SLSA-style provenance attestation.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: verify-signature-and-provenance
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/sinhnguyen1411/stock-trading/user-service:*"
+          attestors:
+            - entries:
+                - keys:
+                    publicKeys: |
+                      {{ cosign:cosign-public-key/cosign.pub }}
+          attestations:
+            - type: https://slsa.dev/provenance/v0.2
+              conditions:
+                any:
+                  - key: "{{ regex_match('github-actions', '{{ attestation.statement.predicate.builder.id }}') }}"
+                    operator: Equals
+                    value: true

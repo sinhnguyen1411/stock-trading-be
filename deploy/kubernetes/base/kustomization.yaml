@@ -9,5 +9,5 @@ resources:
   - service.yaml
 
 images:
-  - name: ghcr.io/example/stock-trading/user-service
+  - name: ghcr.io/sinhnguyen1411/stock-trading/user-service
     newTag: dev

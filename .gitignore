@@ -29,3 +29,9 @@ go.work.sum
 
 # golang
 vendor/
+
+# cosign private key (do not commit)
+cosign.key
+
+# downloaded tooling binaries
+bin/
