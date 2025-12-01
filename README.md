@@ -204,3 +204,22 @@ The `ConnectDB` function initializes a MySQL connection using `database/sql` and
 - Refresh tokens are independent JWTs with longer TTL (`auth.refresh_token_secret`, `auth.refresh_token_ttl_minutes`). They are rotated on refresh and revoked on logout within the in-memory blacklist.
 - The gRPC gateway forwards `Authorization: Bearer <token>` headers to backend services. All non-public RPCs enforce token verification.
 - Rotate secrets regularly in production and keep them outside version control (for example, via environment variables or a secret manager).
+
+## Supply-Chain Security Pipeline (SBOM → Scan → Sign → Enforce)
+- CI workflow: `.github/workflows/secure-supply-chain.yml` builds the image, runs `go test`, generates SBOM (Syft), scans CVEs (Grype, fails on High/Critical), signs and attests with Cosign (keyless by default), pushes to GHCR, and emits a deploy overlay with required annotations (`security.grype.io/high_critical`, `security.stock-trading.dev/sbom-digest`).
+- Outputs and artifacts: SBOM (`sbom.spdx.json`), scan report (`grype-report.json`), provenance (`provenance.json`), and a ready Kustomize overlay at `deploy/kubernetes/overlays/ci/` carrying the annotation values from that run.
+- Registry: images are published to `ghcr.io/sinhnguyen1411/stock-trading/user-service:<tag>`; ensure `docker login ghcr.io` works in CI/local.
+- Admission policies: Kyverno policies live in `deploy/policies/kyverno/` (verify Cosign signature + provenance, require SBOM digest annotation, require High/Critical=0). Apply after publishing your Cosign public key:
+  ```bash
+  kubectl -n kyverno create configmap cosign-public-key --from-file=cosign.pub=./cosign.pub
+  kubectl apply -k deploy/policies/kyverno
+  ```
+- Local cluster demo: Docker Desktop running, then bootstrap Kind + Kyverno with `COSIGN_PUB_PATH=./cosign.pub ./scripts/devsecops_kind_bootstrap.sh`. Deploy the signed image using the CI overlay:
+  ```bash
+  kubectl apply -k deploy/kubernetes/overlays/ci
+  ```
+  Unsigned or unannotated pods should be denied; signed + annotated should be admitted. Verify signatures manually:
+  ```bash
+  cosign verify --keyless ghcr.io/sinhnguyen1411/stock-trading/user-service:<tag>
+  cosign verify-attestation --type slsaprovenance --keyless ghcr.io/sinhnguyen1411/stock-trading/user-service:<tag>
+  ```
