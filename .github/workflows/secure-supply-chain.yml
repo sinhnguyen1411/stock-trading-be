@@ -1,0 +1,187 @@
+name: secure-supply-chain
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: sinhnguyen1411/stock-trading/user-service
+  GO_VERSION: "1.23.2"
+  SBOM_PATH: sbom.spdx.json
+  SCAN_REPORT: grype-report.json
+
+jobs:
+  build-sign-verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write         # needed for GHCR push
+      id-token: write         # needed for keyless cosign
+      security-events: write  # allow SARIF upload
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Derive metadata
+        id: meta
+        run: |
+          TAG=${GITHUB_SHA::12}
+          IMAGE="${REGISTRY}/${IMAGE_NAME}:${TAG}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "image_ref=${IMAGE}@${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        run: |
+          docker build \
+            --file Dockerfile \
+            --tag ${{ steps.meta.outputs.image }} \
+            .
+
+      - name: Run unit tests
+        run: go test ./...
+
+      - name: Generate SBOM (Syft)
+        uses: anchore/sbom-action@v0.17.7
+        with:
+          image: ${{ steps.meta.outputs.image }}
+          output-file: ${{ env.SBOM_PATH }}
+
+      - name: Vulnerability scan (Grype) - fail on High/Critical
+        uses: anchore/scan-action@v3
+        id: scan
+        with:
+          image: ${{ steps.meta.outputs.image }}
+          fail-build: true
+          severity-cutoff: high
+          output-format: json
+          output-file: ${{ env.SCAN_REPORT }}
+
+      - name: Compute annotation values (SBOM digest + High/Critical count)
+        id: annos
+        run: |
+          set -euo pipefail
+          SBOM_DIGEST=$(sha256sum "${{ env.SBOM_PATH }}" | awk '{print $1}')
+          HIGH_CRITICAL=$(jq '[.matches[]?.vulnerability.severity? // "" | ascii_downcase | select(.=="high" or .=="critical")] | length' "${{ env.SCAN_REPORT }}" || echo "0")
+          echo "sbom_digest=${SBOM_DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "high_critical=${HIGH_CRITICAL}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: ${{ env.SBOM_PATH }}
+
+      - name: Upload scan report
+        uses: actions/upload-artifact@v4
+        with:
+          name: grype-report
+          path: ${{ env.SCAN_REPORT }}
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.7.0
+
+      - name: Sign image with keyless Cosign
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign --yes ${{ steps.meta.outputs.image }}
+
+      - name: Generate SLSA-style provenance predicate
+        id: provenance
+        run: |
+          cat > provenance.json <<'EOF'
+          {
+            "buildType": "https://slsa.dev/provenance/v0.2",
+            "builder": { "id": "github-actions" },
+            "invocation": {
+              "configSource": {
+                "uri": "${{ github.repositoryUrl }}",
+                "digest": { "gitCommit": "${GITHUB_SHA}" }
+              }
+            },
+            "metadata": {
+              "buildInvocationId": "${{ github.run_id }}",
+              "completeness": { "parameters": true, "environment": true, "materials": true },
+              "reproducible": false
+            },
+            "materials": [
+              { "uri": "git+${{ github.repositoryUrl }}", "digest": { "sha1": "${GITHUB_SHA}" } }
+            ]
+          }
+          EOF
+          echo "predicate=provenance.json" >> "$GITHUB_OUTPUT"
+
+      - name: Attach SBOM to image
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign attach sbom --sbom ${{ env.SBOM_PATH }} ${{ steps.meta.outputs.image }}
+
+      - name: Attest provenance
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign attest --yes \
+            --predicate ${{ steps.provenance.outputs.predicate }} \
+            --type slsaprovenance \
+            ${{ steps.meta.outputs.image }}
+
+      - name: Render Kustomize annotations overlay (with scan/SBOM values)
+        run: |
+          set -euo pipefail
+          mkdir -p deploy/kubernetes/overlays/ci
+          cat > deploy/kubernetes/overlays/ci/patch-annotations.yaml <<'EOF'
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: user-service
+            namespace: stock-trading
+          spec:
+            template:
+              metadata:
+                annotations:
+                  security.grype.io/high_critical: "${{ steps.annos.outputs.high_critical }}"
+                  security.stock-trading.dev/sbom-digest: "${{ steps.annos.outputs.sbom_digest }}"
+          EOF
+          cat > deploy/kubernetes/overlays/ci/kustomization.yaml <<'EOF'
+          apiVersion: kustomize.config.k8s.io/v1beta1
+          kind: Kustomization
+          namespace: stock-trading
+          resources:
+            - ../../base
+          patches:
+            - path: patch-annotations.yaml
+          EOF
+
+      - name: Push image + artifacts to registry
+        run: |
+          docker push ${{ steps.meta.outputs.image }}
+          cosign verify --keyless ${{ steps.meta.outputs.image }}
+
+      - name: Upload Cosign bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: cosign-bundle
+          path: |
+            provenance.json
+            ${{ env.SBOM_PATH }}
+            ${{ env.SCAN_REPORT }}
+            deploy/kubernetes/overlays/ci/patch-annotations.yaml
+            deploy/kubernetes/overlays/ci/kustomization.yaml

@@ -20,6 +20,8 @@ spec:
         app.kubernetes.io/part-of: stock-trading
       annotations:
         kubectl.kubernetes.io/default-container: user-service
+        security.grype.io/high_critical: "0" # updated by CI to reflect scan result
+        security.stock-trading.dev/sbom-digest: "TBD" # replace with SBOM digest/OCI ref from CI
     spec:
       serviceAccountName: user-service
       automountServiceAccountToken: false

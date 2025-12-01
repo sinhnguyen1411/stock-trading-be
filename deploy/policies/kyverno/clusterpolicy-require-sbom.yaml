@@ -1,0 +1,27 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-sbom-annotation
+  annotations:
+    policies.kyverno.io/title: Require SBOM reference
+    policies.kyverno.io/category: DevSecOps
+    policies.kyverno.io/description: |
+      Ensure pods declare the SBOM digest/reference produced by CI, enabling traceability at admission.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-sbom-digest
+      match:
+        any:
+          - resources:
+              kinds: ["Pod"]
+              selector:
+                matchLabels:
+                  app.kubernetes.io/name: user-service
+      validate:
+        message: "Pod rejected: missing SBOM reference annotation (security.stock-trading.dev/sbom-digest)."
+        pattern:
+          metadata:
+            annotations:
+              security.stock-trading.dev/sbom-digest: "?*"
